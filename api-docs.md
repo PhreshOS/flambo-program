@@ -1,7 +1,7 @@
 # Flambo browser service
 
 Flambo's `browser` Server service owns isolated Chromium sessions. Every session is
-private to the Endpoint that created it. Consumers receive nothing until they
+private to the Process that created it and is shared by that Process's Endpoints. Consumers receive nothing until they
 explicitly request a snapshot or start a live frame stream.
 
 ## Questions

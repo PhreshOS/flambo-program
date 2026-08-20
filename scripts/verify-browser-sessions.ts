@@ -11,6 +11,7 @@ class FakePage implements BrowserPage {
   public frameSequence = 0
   public frameStarts = 0
   public frameStops = 0
+  public wheelDeltas: Array<readonly [number, number]> = []
 
   public constructor(public viewport: BrowserViewport) {}
 
@@ -28,7 +29,7 @@ class FakePage implements BrowserPage {
   public async reload() {}
   public async resize(viewport: BrowserViewport) { this.viewport = viewport }
   public async click() {}
-  public async wheel() {}
+  public async wheel(deltaX: number, deltaY: number) { this.wheelDeltas.push([deltaX, deltaY]) }
   public async type() {}
   public async press() {}
   public async startFrames(listener: FrameListener) {
@@ -79,6 +80,14 @@ assert.equal(initialWorkspace.active, second.session)
 sessions.select("client:first", first.session)
 assert.equal((await sessions.workspace("client:first")).active, first.session)
 
+const wheels = [
+  sessions.wheel("client:first", first.session, 0, 20),
+  sessions.wheel("client:first", first.session, 5, 30),
+  sessions.wheel("client:first", first.session, -5, 10)
+]
+await Promise.all(wheels)
+assert.deepEqual(engine.pages[0]?.wheelDeltas, [[0, 60]])
+
 await sessions.navigate("client:first", first.session, "https://example.com/")
 const navigated = await sessions.snapshot("client:first", first.session)
 assert.equal(navigated.url, "https://example.com/")
@@ -100,6 +109,22 @@ assert.equal(engine.pages[0]?.frameStops, 0)
 await sessions.stopFrames("client:first", first.session, "frame:second")
 assert.equal(sessions.metrics().streams.active, 0)
 assert.equal(engine.pages[0]?.frameStops, 1)
+
+let releaseFrame!: () => void
+const frameGate = new Promise<void>(resolve => { releaseFrame = resolve })
+const deliveredSequences: number[] = []
+await sessions.startFrames("client:first", first.session, "frame:slow", async frame => {
+  deliveredSequences.push(frame.sequence)
+  if (deliveredSequences.length === 1) await frameGate
+})
+await engine.pages[0]?.emitFrame()
+await engine.pages[0]?.emitFrame()
+await engine.pages[0]?.emitFrame()
+assert.deepEqual(deliveredSequences, [2])
+releaseFrame()
+await new Promise(resolve => setTimeout(resolve, 0))
+assert.deepEqual(deliveredSequences, [2, 4])
+await sessions.stopFrames("client:first", first.session, "frame:slow")
 
 await sessions.close("client:first", second.session)
 assert.equal(engine.pages[1]?.closed, true)

@@ -1,4 +1,4 @@
-import { Client, type Endpoint } from "@phreshos/core"
+import type { Endpoint } from "@phreshos/core"
 import { current, host } from "@phreshos/server"
 import docs from "@/api-docs.md?raw"
 import ChromiumEngine from "@libs/browser-engine"
@@ -92,10 +92,7 @@ export default async function service() {
   current.answer("metrics", () => sessions.metrics())
 
   host.subscribe("processExit", ({ process }) => {
-    void Promise.all([
-      sessions.closeOwner(`client:${process.identity}`),
-      sessions.closeOwner(`server:${process.identity}`)
-    ])
+    void sessions.closeOwner(process.identity)
   })
 
   await current.enableService({ name: "browser", docs })
@@ -106,7 +103,7 @@ function owner(endpoint: Endpoint) {
   if (existing) return existing
 
   const identity = endpoint.process().then(process => {
-    return `${endpoint instanceof Client ? "client" : "server"}:${process.identity}`
+    return process.identity
   })
   owners.set(endpoint, identity)
   return identity

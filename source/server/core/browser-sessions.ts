@@ -18,10 +18,17 @@ type Session = {
   page: BrowserPage
   queue: Promise<void>
   streams: Map<string, Stream>
+  wheel: {
+    deltaX: number
+    deltaY: number
+    task: Promise<void> | null
+  }
 }
 
 type Stream = {
-  listener: (frame: BrowserFrame) => void
+  listener: (frame: BrowserFrame) => unknown
+  pending: BrowserFrame | null
+  sending: boolean
   timeout: ReturnType<typeof setTimeout> | null
 }
 
@@ -69,7 +76,13 @@ export default class BrowserSessions {
       this.release(owner)
     }
 
-    const session: Session = { owner, page, queue: Promise.resolve(), streams: new Map() }
+    const session: Session = {
+      owner,
+      page,
+      queue: Promise.resolve(),
+      streams: new Map(),
+      wheel: { deltaX: 0, deltaY: 0, task: null }
+    }
 
     this.sessions.set(id, session)
     this.ownerSessions.get(owner)?.add(id) ?? this.ownerSessions.set(owner, new Set([id]))
@@ -125,7 +138,15 @@ export default class BrowserSessions {
   }
 
   public wheel(owner: string, session: string, deltaX: number, deltaY: number) {
-    return this.act(owner, session, page => page.wheel(deltaX, deltaY))
+    const owned = this.owned(owner, session)
+    owned.wheel.deltaX += deltaX
+    owned.wheel.deltaY += deltaY
+
+    if (owned.wheel.task) return owned.wheel.task
+
+    const task = this.run(owner, session, page => this.flushWheel(owned, page))
+    owned.wheel.task = task
+    return task
   }
 
   public type(owner: string, session: string, text: string) {
@@ -136,7 +157,7 @@ export default class BrowserSessions {
     return this.act(owner, session, page => page.press(key))
   }
 
-  public startFrames(owner: string, id: string, event: string, listener: (frame: BrowserFrame) => void) {
+  public startFrames(owner: string, id: string, event: string, listener: (frame: BrowserFrame) => unknown) {
     const session = this.owned(owner, id)
 
     return this.run(owner, id, async page => {
@@ -150,6 +171,8 @@ export default class BrowserSessions {
 
       const stream: Stream = {
         listener,
+        pending: null,
+        sending: false,
         timeout: null
       }
       session.streams.set(event, stream)
@@ -246,11 +269,35 @@ export default class BrowserSessions {
     const message = { session: id, ...frame }
     const bytes = encodedBytes(frame.image)
 
-    for (const stream of session.streams.values()) {
-      this.streamFrames += 1
-      this.streamBytes += bytes
-      stream.listener(message)
+    for (const [event, stream] of session.streams) this.deliverFrame(id, event, stream, message, bytes)
+  }
+
+  private deliverFrame(id: string, event: string, stream: Stream, frame: BrowserFrame, bytes = encodedBytes(frame.image)) {
+    const session = this.sessions.get(id)
+    if (!session || session.streams.get(event) !== stream) return
+
+    if (stream.sending) {
+      stream.pending = frame
+      return
     }
+
+    stream.sending = true
+    this.streamFrames += 1
+    this.streamBytes += bytes
+
+    Promise.resolve(stream.listener(frame)).catch(() => undefined).finally(() => {
+      stream.sending = false
+
+      const current = this.sessions.get(id)
+      if (!current || current.streams.get(event) !== stream) {
+        stream.pending = null
+        return
+      }
+
+      const pending = stream.pending
+      stream.pending = null
+      if (pending) this.deliverFrame(id, event, stream, pending)
+    })
   }
 
   private renewStream(id: string, event: string, stream: Stream) {
@@ -273,6 +320,7 @@ export default class BrowserSessions {
     if (!stream) return false
 
     if (stream.timeout) clearTimeout(stream.timeout)
+    stream.pending = null
     session.streams.delete(event)
     this.streamActive -= 1
     return true
@@ -288,6 +336,15 @@ export default class BrowserSessions {
 
   private act(owner: string, session: string, operation: (page: BrowserPage) => Promise<void>) {
     return this.run(owner, session, operation)
+  }
+
+  private flushWheel(session: Session, page: BrowserPage) {
+    const deltaX = session.wheel.deltaX
+    const deltaY = session.wheel.deltaY
+    session.wheel.deltaX = 0
+    session.wheel.deltaY = 0
+    session.wheel.task = null
+    return page.wheel(deltaX, deltaY)
   }
 
   private run<Result>(owner: string, id: string, operation: (page: BrowserPage) => Promise<Result>): Promise<Result> {
