@@ -245,8 +245,10 @@ button:disabled {
   position: relative;
   display: flex;
   align-items: center;
+  min-width: 0;
   gap: 8px;
   padding: 0 12px;
+  overflow: hidden;
   background: #ffffff;
   border-bottom: 1px solid #d0dbe5;
   box-shadow: 0 2px 8px rgba(15, 39, 56, 0.03);
@@ -288,8 +290,10 @@ button:disabled {
   display: flex;
   align-items: center;
   flex: 1 1 auto;
+  min-width: 0;
   height: 34px;
   padding: 0 8px 0 10px;
+  overflow: hidden;
   border-radius: 10px;
   background: #f0f4f8;
   border: 1px solid #d0dce7;
@@ -775,6 +779,8 @@ button:disabled {
 }
 
 .footer-url {
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

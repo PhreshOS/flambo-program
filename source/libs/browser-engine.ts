@@ -15,6 +15,7 @@ export type FrameListener = (frame: PageFrame) => void
 export interface BrowserPage {
   state(): Promise<PageState>
   snapshot(): Promise<PageSnapshot>
+  currentFrame(): Promise<PageFrame>
   navigate(url: string): Promise<void>
   back(): Promise<void>
   forward(): Promise<void>
@@ -132,6 +133,10 @@ class ChromiumPage implements BrowserPage {
 
     await this.updateTitle()
     return { url: this.page.url(), title: this.title, viewport }
+  }
+
+  public async currentFrame(): Promise<PageFrame> {
+    return { sequence: this.sequence += 1, ...await this.snapshot() }
   }
 
   public async navigate(url: string) {

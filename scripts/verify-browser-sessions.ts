@@ -23,6 +23,10 @@ class FakePage implements BrowserPage {
     return { url: this.url, title: this.title, image: "AA==", viewport: this.viewport, capturedAt: Date.now() }
   }
 
+  public async currentFrame() {
+    return { sequence: this.frameSequence += 1, ...await this.snapshot() }
+  }
+
   public async navigate(url: string) { this.url = url; this.title = "Navigated" }
   public async back() {}
   public async forward() {}
@@ -40,7 +44,7 @@ class FakePage implements BrowserPage {
   public async close() { this.closed = true }
 
   public async emitFrame() {
-    this.frame?.({ sequence: this.frameSequence += 1, ...await this.snapshot() })
+    this.frame?.(await this.currentFrame())
   }
 }
 
@@ -97,12 +101,17 @@ let firstFrames = 0
 let secondFrames = 0
 await sessions.startFrames("client:first", first.session, "frame:first", () => { firstFrames += 1 })
 await sessions.startFrames("client:first", first.session, "frame:second", () => { secondFrames += 1 })
-await engine.pages[0]?.emitFrame()
 assert.equal(firstFrames, 1)
 assert.equal(secondFrames, 1)
+await engine.pages[0]?.emitFrame()
+assert.equal(firstFrames, 2)
+assert.equal(secondFrames, 2)
+await sessions.reload("client:first", first.session)
+assert.equal(firstFrames, 3)
+assert.equal(secondFrames, 3)
 assert.equal(engine.pages[0]?.frameStarts, 1)
 assert.equal(sessions.metrics().streams.active, 2)
-assert.equal(sessions.metrics().streams.frames, 2)
+assert.equal(sessions.metrics().streams.frames, 6)
 await sessions.stopFrames("client:first", first.session, "frame:first")
 assert.equal(sessions.metrics().streams.active, 1)
 assert.equal(engine.pages[0]?.frameStops, 0)
@@ -120,10 +129,10 @@ await sessions.startFrames("client:first", first.session, "frame:slow", async fr
 await engine.pages[0]?.emitFrame()
 await engine.pages[0]?.emitFrame()
 await engine.pages[0]?.emitFrame()
-assert.deepEqual(deliveredSequences, [2])
+assert.deepEqual(deliveredSequences, [5])
 releaseFrame()
 await new Promise(resolve => setTimeout(resolve, 0))
-assert.deepEqual(deliveredSequences, [2, 4])
+assert.deepEqual(deliveredSequences, [5, 8])
 await sessions.stopFrames("client:first", first.session, "frame:slow")
 
 await sessions.close("client:first", second.session)

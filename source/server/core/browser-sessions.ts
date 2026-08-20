@@ -122,12 +122,12 @@ export default class BrowserSessions {
   }
 
   public navigate(owner: string, session: string, url: string) {
-    return this.act(owner, session, page => page.navigate(url))
+    return this.actAndFrame(owner, session, page => page.navigate(url))
   }
 
-  public back(owner: string, session: string) { return this.act(owner, session, page => page.back()) }
-  public forward(owner: string, session: string) { return this.act(owner, session, page => page.forward()) }
-  public reload(owner: string, session: string) { return this.act(owner, session, page => page.reload()) }
+  public back(owner: string, session: string) { return this.actAndFrame(owner, session, page => page.back()) }
+  public forward(owner: string, session: string) { return this.actAndFrame(owner, session, page => page.forward()) }
+  public reload(owner: string, session: string) { return this.actAndFrame(owner, session, page => page.reload()) }
 
   public resize(owner: string, session: string, viewport: BrowserViewport) {
     return this.act(owner, session, page => page.resize(viewport))
@@ -166,6 +166,7 @@ export default class BrowserSessions {
       if (existing) {
         existing.listener = listener
         this.renewStream(id, event, existing)
+        this.deliverFrame(id, event, existing, { session: id, ...await page.currentFrame() })
         return this.leaseMilliseconds
       }
 
@@ -179,10 +180,9 @@ export default class BrowserSessions {
       this.streamActive += 1
       this.renewStream(id, event, stream)
 
-      if (session.streams.size > 1) return this.leaseMilliseconds
-
       try {
-        await page.startFrames(frame => this.publishFrame(id, frame))
+        if (session.streams.size === 1) await page.startFrames(frame => this.publishFrame(id, frame))
+        this.deliverFrame(id, event, stream, { session: id, ...await page.currentFrame() })
       } catch (error) {
         this.dropStream(session, event)
         throw error
@@ -336,6 +336,15 @@ export default class BrowserSessions {
 
   private act(owner: string, session: string, operation: (page: BrowserPage) => Promise<void>) {
     return this.run(owner, session, operation)
+  }
+
+  private actAndFrame(owner: string, id: string, operation: (page: BrowserPage) => Promise<void>) {
+    const session = this.owned(owner, id)
+
+    return this.run(owner, id, async page => {
+      await operation(page)
+      if (session.streams.size > 0) this.publishFrame(id, await page.currentFrame())
+    })
   }
 
   private flushWheel(session: Session, page: BrowserPage) {
