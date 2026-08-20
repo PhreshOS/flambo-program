@@ -9,7 +9,7 @@ import type {
   BrowserViewport,
   BrowserWheelRequest,
   BrowserWorkspace
-} from "@/source/contracts"
+} from "@server/core/browser"
 
 export const browserService = host.service({
   program: "flambo",

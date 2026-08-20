@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
-import config from "../phresh.config.ts"
+import config from "../phresh.config"
 import manifest from "../package.json" with { type: "json" }
 
 assert.equal(config.identity, "flambo")

@@ -1,5 +1,5 @@
 import type { MouseEvent } from "react"
-import type { BrowserTab } from "@client/core/use-browser"
+import type { BrowserTab } from "./use-browser"
 import { IconClose, IconGlobe, IconPlus } from "./icons"
 
 type TabsProperties = Readonly<{

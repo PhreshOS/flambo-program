@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import BrowserSessions from "@server/core/browser-sessions"
-import type { BrowserEngine, BrowserPage, FrameListener, PageSnapshot } from "@libs/browser-engine"
-import type { BrowserViewport } from "@/source/contracts"
+import type { BrowserEngine, BrowserPage, FrameListener, PageSnapshot } from "@server/core/browser-engine"
+import type { BrowserViewport } from "@server/core/browser"
 
 class FakePage implements BrowserPage {
   public closed = false

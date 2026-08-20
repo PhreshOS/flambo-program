@@ -5,9 +5,9 @@
     "": {
       "name": "flambo-program",
       "dependencies": {
-        "@phreshos/client": "^0.1.8",
+        "@phreshos/client": "^0.1.9",
         "@phreshos/core": "^0.1.6",
-        "@phreshos/react": "^0.1.4",
+        "@phreshos/react": "^0.1.5",
         "@phreshos/server": "^0.1.7",
         "playwright": "^1.62.1",
         "react": "^19.2.8",
@@ -81,11 +81,11 @@
 
     "@phreshos/cli": ["@phreshos/cli@0.1.14", "", { "dependencies": { "@clack/prompts": "^1.7.0", "@phreshos/core": "^0.1.4", "adm-zip": "^0.6.0", "commander": "^15.0.0", "picocolors": "^1.1.1" }, "bin": { "phresh": "dist/cli.js" } }, "sha512-O0+Zem0Tql9U6Q6WubbQdAARXJXRHHMjds3/uQwKE/cJm68tETkRJlazoV3ZdQHw9Ma2SM0+iCuaBU3W6PkKqg=="],
 
-    "@phreshos/client": ["@phreshos/client@0.1.8", "", { "dependencies": { "@msgpack/msgpack": "^3.1.3" }, "peerDependencies": { "@phreshos/core": "^0.1.6" } }, "sha512-EQjxNR/cYG4I4WLl+hCWQ/LebHCGXFet38RKE4Uf5zLlXAx+75BLY361i7JMpszE9WIGU/siqwDN7eM1mKrU4g=="],
+    "@phreshos/client": ["@phreshos/client@0.1.9", "", { "dependencies": { "@msgpack/msgpack": "^3.1.3" }, "peerDependencies": { "@phreshos/core": "^0.1.6" } }, "sha512-RKsTzOz2/ey8ypegA5wzEy83YLb0M9NOky7wzpOEOm5Gbno7QkP8Bp7HFysP6xv0KuT2mHgUn818e138Ffov2g=="],
 
     "@phreshos/core": ["@phreshos/core@0.1.6", "", {}, "sha512-x6xB/cNTyYa1BGvug4+eWxBJb0Y3dFEO1tP3VUX/1mCxzH6EoaH3d1w9L0GgZ19/DY+zKP9I2dXztLEkE78sfg=="],
 
-    "@phreshos/react": ["@phreshos/react@0.1.4", "", { "peerDependencies": { "@phreshos/client": "^0.1.7", "@phreshos/core": "^0.1.6", "react": "^19.2.0" } }, "sha512-WgNiBr0DTM+g5eoYbx6UakuWfVThsgxOjxqNF7DIiiWBoB2TgTUw4wTw5dTws5gC6YjaKHZN+0QpUCXvbKXI+Q=="],
+    "@phreshos/react": ["@phreshos/react@0.1.5", "", { "peerDependencies": { "@phreshos/client": "^0.1.9", "@phreshos/core": "^0.1.6", "react": "^19.2.0" } }, "sha512-oL/AQ1BZlsQBfzSjvHwGH75Z4pAaBQW6goSaFSq72JKBJG6Ci1CuzVe4nl/puAiz+FrLe2IHSFBRiF/uwqHHIA=="],
 
     "@phreshos/server": ["@phreshos/server@0.1.7", "", { "dependencies": { "@msgpack/msgpack": "^3.1.3" }, "peerDependencies": { "@phreshos/core": "^0.1.6" } }, "sha512-Kuhe0MmpM2jS8Z/xGSyC4TJXFk3qpHtFKC+LOLC3FegSRK3dqbXB3fd5KlNZmZuUuwQeHnPOa/UVr53LsBGt5Q=="],
 

@@ -1,4 +1,4 @@
-import type { BrowserFrame } from "@/source/contracts"
+import type { BrowserFrame } from "@server/core/browser"
 
 /** Keeps high-frequency frames outside React state and drops superseded work at the renderer. */
 export default class BrowserFrames {

@@ -16,7 +16,6 @@
     "paths": {
       "@/*": ["./*"],
       "@client/*": ["./source/client/*"],
-      "@libs/*": ["./source/libs/*"],
       "@server/*": ["./source/server/*"]
     }
   }

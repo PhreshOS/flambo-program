@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type WheelEvent } from "react"
-import type { BrowserTab } from "@client/core/use-browser"
-import type BrowserFrames from "@client/core/browser-frames"
-import type { BrowserFrame, BrowserKeyRequest, BrowserViewport } from "@/source/contracts"
+import type { BrowserTab } from "./use-browser"
+import type BrowserFrames from "./browser-frames"
+import type { BrowserFrame, BrowserKeyRequest, BrowserViewport } from "@server/core/browser"
 import NewTabPage from "./new-tab-page"
 import { IconReload, IconBack, IconSearch } from "./icons"
 

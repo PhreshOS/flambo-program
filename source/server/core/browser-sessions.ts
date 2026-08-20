@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto"
-import type { BrowserEngine, BrowserPage } from "@libs/browser-engine"
+import type { BrowserEngine, BrowserPage } from "./browser-engine"
 import type {
   BrowserFrame,
   BrowserMetrics,
   BrowserSnapshot,
   BrowserViewport,
   BrowserWorkspace
-} from "@/source/contracts"
+} from "./browser"
 
 export type BrowserLimits = Readonly<{
   total: number

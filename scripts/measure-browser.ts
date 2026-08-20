@@ -1,4 +1,4 @@
-import ChromiumEngine from "@libs/browser-engine"
+import ChromiumEngine from "@server/view/chromium"
 import BrowserSessions from "@server/core/browser-sessions"
 
 const requested = Number(process.argv[2] ?? 4)

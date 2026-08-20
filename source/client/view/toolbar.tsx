@@ -1,5 +1,5 @@
 import { useEffect, useState, type KeyboardEvent, type FocusEvent } from "react"
-import type { BrowserTab } from "@client/core/use-browser"
+import type { BrowserTab } from "./use-browser"
 import { IconBack, IconForward, IconReload, IconHome, IconLock, IconSearch, IconGlobe, IconCopy, IconCheck, IconClose } from "./icons"
 
 type ToolbarProperties = Readonly<{

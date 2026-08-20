@@ -1,7 +1,7 @@
 import type { Endpoint } from "@phreshos/core"
 import { current, host } from "@phreshos/server"
 import docs from "@/api-docs.md?raw"
-import ChromiumEngine from "@libs/browser-engine"
+import ChromiumEngine from "./chromium"
 import BrowserSessions from "@server/core/browser-sessions"
 import type {
   BrowserInputRequest,
@@ -9,7 +9,7 @@ import type {
   BrowserPointerRequest,
   BrowserViewport,
   BrowserWheelRequest
-} from "@/source/contracts"
+} from "@server/core/browser"
 
 const sessions = new BrowserSessions(new ChromiumEngine())
 const owners = new WeakMap<Endpoint, Promise<string>>()

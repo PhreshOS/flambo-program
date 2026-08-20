@@ -1,18 +1,18 @@
 {
     "name": "flambo-program",
     "private": true,
-    "version": "0.1.6",
+    "version": "0.1.7",
     "description": "The official PhreshOS web browser Program.",
     "type": "module",
     "packageManager": "bun@1.3.14",
     "scripts": {
         "check": "tsc --noEmit",
-        "build": "vite-node --config vite.server.ts source/build.ts",
+        "build": "vite-node scripts/build.ts",
         "dev": "phresh dev",
         "start": "phresh start",
         "pack": "phresh pack",
-        "measure": "vite-node --config vite.server.ts scripts/measure-browser.ts",
-        "verify": "node --run check && node --run build && vite-node --config vite.server.ts scripts/verify-browser-sessions.ts && vite-node --config vite.server.ts scripts/verify-build.mjs"
+        "measure": "vite-node scripts/measure-browser.ts",
+        "verify": "node --run check && node --run build && vite-node scripts/verify-browser-sessions.ts && vite-node scripts/verify-build.ts"
     },
     "author": "Zohayr SLILEH",
     "license": "MIT",
@@ -31,9 +31,9 @@
         "flambo"
     ],
     "dependencies": {
-        "@phreshos/client": "^0.1.8",
+        "@phreshos/client": "^0.1.9",
         "@phreshos/core": "^0.1.6",
-        "@phreshos/react": "^0.1.4",
+        "@phreshos/react": "^0.1.5",
         "@phreshos/server": "^0.1.7",
         "playwright": "^1.62.1",
         "react": "^19.2.8",

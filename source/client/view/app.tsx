@@ -1,5 +1,5 @@
 import { HostProvider, useHostTheme } from "@phreshos/react"
-import useBrowser from "@client/core/use-browser"
+import useBrowser from "./use-browser"
 import Surface from "./surface"
 import Toolbar from "./toolbar"
 import Tabs from "./tabs"

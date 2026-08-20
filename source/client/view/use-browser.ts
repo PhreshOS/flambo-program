@@ -6,8 +6,8 @@ import type {
   BrowserSession,
   BrowserSnapshot,
   BrowserViewport
-} from "@/source/contracts"
-import { browser, browserService } from "@client/view/browser-service"
+} from "@server/core/browser"
+import { browser, browserService } from "./browser-service"
 import BrowserFrames from "./browser-frames"
 
 export type BrowserTab = Readonly<{
