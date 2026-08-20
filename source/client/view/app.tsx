@@ -18,7 +18,6 @@ function ThemedBrowser() {
   const state = useBrowser()
 
   const activeUrl = state.activeTab?.page.url
-  const isBlank = !activeUrl || activeUrl === "about:blank"
 
   if (!state.service) {
     return <LoadingState message="Connecting to Flambo…" />
@@ -36,7 +35,11 @@ function ThemedBrowser() {
     )
   }
 
-  if (state.creationError && state.tabs.length === 0) {
+  if (state.workspaceStatus === "pending") {
+    return <LoadingState message="Restoring your browser…" />
+  }
+
+  if (state.workspaceStatus === "failed" && state.creationError) {
     return (
       <main className="service-state error">
         <div className="state-card">
@@ -95,7 +98,7 @@ function ThemedBrowser() {
         <div className="footer-left">
           <span className="status-indicator live" title="Connected to Flambo" />
           <span className="footer-url" title={activeUrl ?? ""}>
-            {isBlank ? "Flambo" : activeUrl}
+            {formatFooterUrl(activeUrl)}
           </span>
         </div>
 
@@ -132,4 +135,15 @@ function LoadingState({ message }: Readonly<{ message: string }>) {
       </div>
     </main>
   )
+}
+
+function formatFooterUrl(url: string | undefined): string {
+  if (!url || url === "about:blank") return "Flambo"
+  if (url.startsWith("data:")) {
+    const end = url.indexOf(";")
+    const mime = end > 5 ? url.slice(5, end) : "document"
+    return `data:${mime} (${Math.round(url.length / 1024)} KB)`
+  }
+  if (url.startsWith("blob:")) return "Blob Document"
+  return url
 }

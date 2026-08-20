@@ -18,6 +18,8 @@ export type BrowserTab = Readonly<{
   busy: boolean
 }>
 
+type BrowserWorkspaceStatus = "pending" | "ready" | "failed"
+
 const initialViewport: BrowserViewport = { width: 900, height: 520 }
 
 export default function useBrowser() {
@@ -26,9 +28,11 @@ export default function useBrowser() {
   const [active, setActive] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [creationError, setCreationError] = useState<string | null>(null)
+  const [workspaceStatus, setWorkspaceStatus] = useState<BrowserWorkspaceStatus>("pending")
   const [metrics, setMetrics] = useState<BrowserMetrics>()
   const tabsRef = useRef(tabs)
   const initialized = useRef(false)
+  const restoration = useRef(0)
   const creatingRef = useRef(false)
   const wheelInput = useRef({ session: "", deltaX: 0, deltaY: 0, frame: 0 })
   const textInput = useRef({ session: "", text: "", frame: 0 })
@@ -37,17 +41,21 @@ export default function useBrowser() {
 
   useEffect(() => {
     if (service?.disabled !== false) {
+      restoration.current += 1
       initialized.current = false
+      creatingRef.current = false
       setTabs([])
       setActive(null)
+      setCreating(false)
       setMetrics(undefined)
       setCreationError(null)
+      setWorkspaceStatus("pending")
       return
     }
 
     if (initialized.current) return
     initialized.current = true
-    void restore()
+    void restore(restoration.current += 1)
   }, [service?.disabled])
 
   useEffect(() => {
@@ -116,14 +124,16 @@ export default function useBrowser() {
     if (textInput.current.frame) window.cancelAnimationFrame(textInput.current.frame)
   }, [])
 
-  async function restore() {
+  async function restore(attempt: number) {
     if (creatingRef.current || service?.disabled !== false) return
     creatingRef.current = true
     setCreating(true)
     setCreationError(null)
+    setWorkspaceStatus("pending")
 
     try {
       const workspace = await browser.workspace()
+      if (restoration.current !== attempt) return
 
       if (workspace.sessions.length > 0) {
         setTabs(workspace.sessions.map(session => ({
@@ -136,14 +146,20 @@ export default function useBrowser() {
         setActive(workspace.active ?? workspace.sessions[0]?.session ?? null)
       } else {
         const snapshot = await browser.create(initialViewport)
+        if (restoration.current !== attempt) return
         setTabs([tab(snapshot)])
         setActive(snapshot.session)
       }
+      setWorkspaceStatus("ready")
     } catch (error) {
+      if (restoration.current !== attempt) return
       setCreationError(message(error))
+      setWorkspaceStatus("failed")
     } finally {
-      creatingRef.current = false
-      setCreating(false)
+      if (restoration.current === attempt) {
+        creatingRef.current = false
+        setCreating(false)
+      }
     }
   }
 
@@ -281,16 +297,30 @@ export default function useBrowser() {
     service,
     tabs,
     type,
-    wheel
+    wheel,
+    workspaceStatus
   }
 }
 
 function address(input: string) {
   const value = input.trim()
 
-  if (value === "about:blank") return value
-  if (/^https?:\/\//i.test(value)) return new URL(value).href
-  if (/^[^\s/]+\.[^\s]+/.test(value)) return new URL(`https://${value}`).href
+  if (!value || value === "about:blank") return "about:blank"
+  if (/^https?:\/\//i.test(value)) {
+    try {
+      return new URL(value).href
+    } catch {
+      return `https://duckduckgo.com/?q=${encodeURIComponent(value)}`
+    }
+  }
+
+  if (/^[^\s/]+\.[^\s]+/.test(value)) {
+    try {
+      return new URL(`https://${value}`).href
+    } catch {
+      return `https://duckduckgo.com/?q=${encodeURIComponent(value)}`
+    }
+  }
 
   return `https://duckduckgo.com/?q=${encodeURIComponent(value)}`
 }

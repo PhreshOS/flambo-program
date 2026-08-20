@@ -82,10 +82,15 @@ export default function Tabs({ tabs, active, creating, select, close, create }: 
 
 function formatTabTitle(url: string): string {
   if (!url || url === "about:blank") return "New Tab"
+  if (url.startsWith("data:")) return "Data Document"
+  if (url.startsWith("blob:")) return "Blob Document"
   try {
     const parsed = new URL(url)
-    return parsed.hostname.replace(/^www\./, "") || url
+    const host = parsed.hostname.replace(/^www\./, "")
+    if (host) return host
+    const path = parsed.pathname.split("/").filter(Boolean).pop()
+    return path ? path : (url.length > 24 ? url.slice(0, 24) + "…" : url)
   } catch {
-    return url
+    return url.length > 24 ? url.slice(0, 24) + "…" : url
   }
 }

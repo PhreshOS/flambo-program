@@ -1,5 +1,6 @@
-import { useEffect, useRef, type KeyboardEvent, type MouseEvent, type WheelEvent } from "react"
+import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type WheelEvent } from "react"
 import type { BrowserTab } from "@client/core/use-browser"
+import type BrowserFrames from "@client/core/browser-frames"
 import type { BrowserFrame, BrowserKeyRequest, BrowserViewport } from "@/source/contracts"
 import NewTabPage from "./new-tab-page"
 import { IconReload, IconBack, IconSearch } from "./icons"
@@ -29,8 +30,10 @@ export default function Surface({
 }: SurfaceProperties) {
   const element = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
+  const [displayedFrames, setDisplayedFrames] = useState<BrowserFrames | null>(null)
 
   const isBlank = !tab || !tab.page.url || tab.page.url === "about:blank"
+  const frameDisplayed = Boolean(tab?.frames && displayedFrames === tab.frames)
 
   useEffect(() => {
     const target = element.current
@@ -78,7 +81,12 @@ export default function Surface({
         if (live) {
           if (target.width !== frame.viewport.width) target.width = frame.viewport.width
           if (target.height !== frame.viewport.height) target.height = frame.viewport.height
-          target.getContext("2d", { alpha: false })?.drawImage(image, 0, 0, target.width, target.height)
+          const context = target.getContext("2d", { alpha: false })
+
+          if (context) {
+            context.drawImage(image, 0, 0, target.width, target.height)
+            setDisplayedFrames(frames)
+          }
         }
 
         decoding = false
@@ -149,7 +157,14 @@ export default function Surface({
       {isBlank ? (
         <NewTabPage navigate={navigate} />
       ) : (
-        <canvas ref={canvas} aria-hidden="true" />
+        <>
+          <canvas ref={canvas} aria-hidden="true" />
+          {!frameDisplayed && (
+            <div className="surface-loading" role="status" aria-label="Loading page">
+              <div className="loading-spinner-large" />
+            </div>
+          )}
+        </>
       )}
 
       {tab?.error && (
