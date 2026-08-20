@@ -18,12 +18,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/PhreshOS/flambo.git"
+    "url": "git+https://github.com/PhreshOS/flambo-program.git"
   },
   "bugs": {
-    "url": "https://github.com/PhreshOS/flambo/issues"
+    "url": "https://github.com/PhreshOS/flambo-program/issues"
   },
-  "homepage": "https://github.com/PhreshOS/flambo#readme",
+  "homepage": "https://github.com/PhreshOS/flambo-program#readme",
   "keywords": [
     "phreshos",
     "program",
