@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "flambo",
+      "name": "flambo-program",
       "dependencies": {
         "@phreshos/client": "^0.1.7",
         "@phreshos/core": "^0.1.6",
@@ -15,7 +15,7 @@
       },
       "devDependencies": {
         "@babel/core": "^7.29.7",
-        "@phreshos/cli": "^0.1.13",
+        "@phreshos/cli": "^0.1.14",
         "@rolldown/plugin-babel": "^0.2.3",
         "@types/node": "^26.2.0",
         "@types/react": "^19.2.18",
@@ -77,7 +77,7 @@
 
     "@oxc-project/types": ["@oxc-project/types@0.146.0", "", {}, "sha512-XC0QsnnhVe7sLIWmYmdPw7x5P0h4W8vUU3Nv1ySgWXtvCz8NizoAEpGXA0sOYoJQV2Rl13LgURAHQ5cI5ILCSA=="],
 
-    "@phreshos/cli": ["@phreshos/cli@0.1.13", "", { "dependencies": { "@clack/prompts": "^1.7.0", "@phreshos/core": "^0.1.4", "adm-zip": "^0.6.0", "commander": "^15.0.0", "picocolors": "^1.1.1" }, "bin": { "phresh": "dist/cli.js" } }, "sha512-Cp2jSY5tpBRzeYKe1cwtlyhxFn4bxONzk5OTxqj25ZzIjbtaJFFW3GZsG9HIIx/Vjlprk1bYT2Hswo2b0TAU1A=="],
+    "@phreshos/cli": ["@phreshos/cli@0.1.14", "", { "dependencies": { "@clack/prompts": "^1.7.0", "@phreshos/core": "^0.1.4", "adm-zip": "^0.6.0", "commander": "^15.0.0", "picocolors": "^1.1.1" }, "bin": { "phresh": "dist/cli.js" } }, "sha512-O0+Zem0Tql9U6Q6WubbQdAARXJXRHHMjds3/uQwKE/cJm68tETkRJlazoV3ZdQHw9Ma2SM0+iCuaBU3W6PkKqg=="],
 
     "@phreshos/client": ["@phreshos/client@0.1.7", "", { "peerDependencies": { "@phreshos/core": "^0.1.6" } }, "sha512-cEQrauzhhdYap86VTOre+dwAKT7gfWEoV5Re+p9XQR8Q+lktv8nyduUGhBBa9fjh96Tfy3KDSPWYALDCodalTg=="],
 
