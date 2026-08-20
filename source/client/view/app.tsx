@@ -1,0 +1,135 @@
+import { HostProvider, useHostTheme } from "@phreshos/react"
+import useBrowser from "@client/core/use-browser"
+import Surface from "./surface"
+import Toolbar from "./toolbar"
+import Tabs from "./tabs"
+import { IconGlobe, IconReload, IconSparkles } from "./icons"
+
+export default function App() {
+  return (
+    <HostProvider provide={["theme"]} fallback={<LoadingState message="Initializing PhreshOS…" />}>
+      <ThemedBrowser />
+    </HostProvider>
+  )
+}
+
+function ThemedBrowser() {
+  const theme = useHostTheme()
+  const state = useBrowser()
+
+  const activeUrl = state.activeTab?.page.url
+  const isBlank = !activeUrl || activeUrl === "about:blank"
+
+  if (!state.service) {
+    return <LoadingState message="Connecting to Flambo…" />
+  }
+
+  if (state.service.disabled) {
+    return (
+      <main className="service-state error">
+        <div className="state-card">
+          <div className="state-icon">⚠️</div>
+          <h2>Service Unavailable</h2>
+          <p>Flambo's browser service is currently disabled.</p>
+        </div>
+      </main>
+    )
+  }
+
+  if (state.creationError && state.tabs.length === 0) {
+    return (
+      <main className="service-state error">
+        <div className="state-card">
+          <div className="state-icon">⚠️</div>
+          <h2>Session Initialization Failed</h2>
+          <p>{state.creationError}</p>
+          <button type="button" className="retry-button" onClick={() => void state.newTab()}>
+            <IconReload /> Try Again
+          </button>
+        </div>
+      </main>
+    )
+  }
+
+  return (
+    <main
+      className="browser-shell"
+      style={{
+        "--theme-bg": theme.background,
+        "--theme-fg": theme.foreground,
+        "--theme-accent": theme.accent,
+        "--theme-radius": `${theme.radius}px`,
+        "--theme-spacing": `${theme.spacing}px`
+      } as React.CSSProperties}
+    >
+      <Tabs
+        tabs={state.tabs}
+        active={state.active}
+        creating={state.creating}
+        select={state.select}
+        close={session => void state.closeTab(session)}
+        create={() => void state.newTab()}
+      />
+
+      <Toolbar
+        tab={state.activeTab}
+        back={() => void state.back()}
+        forward={() => void state.forward()}
+        reload={() => void state.reload()}
+        navigate={address => void state.navigate(address)}
+      />
+
+      <Surface
+        tab={state.activeTab}
+        navigate={address => void state.navigate(address)}
+        reload={() => void state.reload()}
+        back={() => void state.back()}
+        click={(x, y, button) => void state.click(x, y, button)}
+        wheel={(deltaX, deltaY) => void state.wheel(deltaX, deltaY)}
+        type={text => void state.type(text)}
+        press={(key, modifiers) => void state.press(key, modifiers)}
+        resize={viewport => void state.resize(viewport)}
+      />
+
+      <footer className="browser-footer">
+        <div className="footer-left">
+          <span className="status-indicator live" title="Connected to Flambo" />
+          <span className="footer-url" title={activeUrl ?? ""}>
+            {isBlank ? "Flambo" : activeUrl}
+          </span>
+        </div>
+
+        {state.metrics && (
+          <div className="footer-metrics">
+            <span className="metric-badge" title="Active Sessions / Total Capacity">
+              <IconGlobe className="metric-icon" />
+              {state.metrics.sessions.active} / {state.metrics.capacity.total}
+            </span>
+            <span className="metric-badge" title="Rendered Frames">
+              {state.metrics.streams.frames.toLocaleString()} frames
+            </span>
+            <span className="metric-badge" title="Average Operation Latency">
+              {state.metrics.operations.averageMilliseconds.toFixed(1)} ms
+            </span>
+          </div>
+        )}
+      </footer>
+    </main>
+  )
+}
+
+function LoadingState({ message }: Readonly<{ message: string }>) {
+  return (
+    <main className="service-state">
+      <div className="state-card loading-card">
+        <div className="loading-spinner-large" />
+        <div className="loading-copy">
+          <div className="loading-title">
+            <IconSparkles /> Flambo
+          </div>
+          <p>{message}</p>
+        </div>
+      </div>
+    </main>
+  )
+}
