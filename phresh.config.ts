@@ -4,7 +4,7 @@ export default defineConfig({
   identity: "flambo",
   name: "Flambo",
   description: "The official PhreshOS web browser.",
-  version: "0.1.7",
+  version: "0.1.8",
   icon: "flambo-icon.png",
   buildCommand: "vite-node scripts/build.ts",
   server: {
