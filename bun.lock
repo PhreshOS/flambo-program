@@ -6,7 +6,7 @@
       "name": "flambo-program",
       "dependencies": {
         "@phreshos/client": "^0.1.13",
-        "@phreshos/core": "^0.1.9",
+        "@phreshos/core": "^0.1.10",
         "@phreshos/react": "^0.1.7",
         "@phreshos/server": "^0.1.11",
         "playwright": "^1.62.1",
@@ -15,7 +15,7 @@
       },
       "devDependencies": {
         "@babel/core": "^7.29.7",
-        "@phreshos/cli": "^0.1.17",
+        "@phreshos/cli": "^0.1.18",
         "@rolldown/plugin-babel": "^0.2.3",
         "@types/node": "^26.2.0",
         "@types/react": "^19.2.18",
@@ -79,11 +79,11 @@
 
     "@oxc-project/types": ["@oxc-project/types@0.146.0", "", {}, "sha512-XC0QsnnhVe7sLIWmYmdPw7x5P0h4W8vUU3Nv1ySgWXtvCz8NizoAEpGXA0sOYoJQV2Rl13LgURAHQ5cI5ILCSA=="],
 
-    "@phreshos/cli": ["@phreshos/cli@0.1.17", "", { "dependencies": { "@clack/prompts": "^1.7.0", "@phreshos/core": "^0.1.9", "adm-zip": "^0.6.0", "commander": "^15.0.0", "picocolors": "^1.1.1" }, "bin": { "phresh": "dist/cli.js" } }, "sha512-9/WHbWZHgTIMGzwSEc7WvdG+KaBuCjAtINI+UBcvddQwmByT/KuShRHZeMwK3ccU0wHbCQg5z23muocRi8wolA=="],
+    "@phreshos/cli": ["@phreshos/cli@0.1.18", "", { "dependencies": { "@clack/prompts": "^1.7.0", "@phreshos/core": "^0.1.10", "adm-zip": "^0.6.0", "commander": "^15.0.0", "picocolors": "^1.1.1" }, "bin": { "phresh": "dist/cli.js" } }, "sha512-iP99dbxyuv6lEhRVBMrLhW1WtrkGvgiCTMFzNUWyhlpaaXyNRhfXAXCH4B6henfKYZt25ra5JPHmZiQLw0G0DA=="],
 
     "@phreshos/client": ["@phreshos/client@0.1.13", "", { "dependencies": { "@msgpack/msgpack": "^3.1.3" }, "peerDependencies": { "@phreshos/core": "^0.1.9" } }, "sha512-YqwNCLStQuzYybkI6gBbFBM79Yq76dd5yRLDocUZ97TDwx0GLhyvF/zIxpzkKcG2i1PKnZkUYRsMRNlP0FVIEw=="],
 
-    "@phreshos/core": ["@phreshos/core@0.1.9", "", {}, "sha512-P2dQ3K3t6HvvPnf9XJRADkK1r3+vUK6d4iHGn4vMUVIFDnE0hTWJGlvRjFzq2plWA0mMtYqm82JcFCmai0cK1w=="],
+    "@phreshos/core": ["@phreshos/core@0.1.10", "", {}, "sha512-egqK1TSD7CAinj4/26mejL0/jzsDdOyQzPocEXN+KB0f1Jl+O+cxHU5S5S7Kwx8ySTQfuT9H/J8fw+yowQe5Jw=="],
 
     "@phreshos/react": ["@phreshos/react@0.1.7", "", { "peerDependencies": { "@phreshos/client": "^0.1.13", "@phreshos/core": "^0.1.9", "react": "^19.2.0" } }, "sha512-JHR4QIGM4+24PYmKsrcWGqa8LRx59KdkRNCAMNg4HZGejt2R5gIotby7ACkh8riQyutWR6LoDF2wPrEqNPTM0A=="],
 
