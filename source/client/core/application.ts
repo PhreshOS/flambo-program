@@ -132,17 +132,11 @@ export default class Application {
 
     const program = await current.program()
 
-    if (!await program.process.find("browser-server")) {
-      try {
-        await program.process.create({
-          name: "browser-server",
-          server: true,
-          client: false
-        })
-      } catch (error) {
-        if (!await program.process.find("browser-server")) throw error
-      }
-    }
+    await program.process.findOrCreate({
+      name: "browser-server",
+      server: true,
+      client: false
+    })
 
     await this.service.waitReady(30_000)
   }

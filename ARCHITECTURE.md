@@ -12,7 +12,7 @@ Client finds or creates one separate server-only Process named
 `browser-server`:
 
 ```ts
-await program.process.create({
+await program.process.findOrCreate({
   name: "browser-server",
   server: true,
   client: false
@@ -128,7 +128,7 @@ Client Core performs one single-flight Service connection:
 
 1. prepare the exact browser Service handle;
 2. use it immediately when enabled;
-3. otherwise find or atomically create `browser-server`;
+3. otherwise atomically find or create `browser-server`;
 4. wait for the Service to become ready;
 5. request or attach the Client's Workspace;
 6. retain its projected Workspace entity and live synchronization.
