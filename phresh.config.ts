@@ -10,7 +10,7 @@ export default defineConfig({
   server: {
     location: "dist/server",
     start: false,
-    serviceable: true,
+    serviceDocs: "api-docs.md",
     startCommand: "node main.js",
     installCommand: "npm install --omit=dev && npx playwright install --with-deps chromium",
     development: {

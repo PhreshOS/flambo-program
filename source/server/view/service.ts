@@ -1,6 +1,5 @@
 import type { Endpoint } from "@phreshos/core"
 import { current, host } from "@phreshos/server"
-import docs from "@/api-docs.md?raw"
 import Application, { type WorkspaceClient, type WorkspaceClients } from "@server/core/application"
 import { browserWorkspaceOption, type BrowserInputRequest } from "@server/core/browser"
 import ChromiumEngine from "@server/core/chromium"
@@ -121,7 +120,7 @@ export default async function service() {
   current.answer("metrics", () => application.metrics())
 
   try {
-    await current.enableService({ name: "browser", docs })
+    await current.enableService("browser")
   } catch (error) {
     await application.dispose()
     throw error

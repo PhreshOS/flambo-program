@@ -1,5 +1,7 @@
 # Flambo browser service
 
+Service name: `browser`
+
 Flambo runs one authoritative browser Server. Consumers work through explicit,
 isolated workspaces hosted by that Server. A workspace identity is required for
 every session, navigation, input, snapshot, and frame-stream operation.

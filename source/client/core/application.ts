@@ -6,7 +6,7 @@ export type ApplicationState = Readonly<{ enabled: boolean }> | undefined
 
 /** Client application coordinating local Workspace peers with Flambo Server. */
 export default class Application {
-  private readonly service = host.service.prepare({
+  private readonly service = host.service({
     program: "flambo",
     endpoint: "server",
     name: "browser"
