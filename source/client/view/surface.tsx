@@ -14,6 +14,7 @@ type SurfaceProperties = Readonly<{
   wheel(deltaX: number, deltaY: number): void
   type(text: string): void
   press(key: string, modifiers: BrowserKeyRequest["modifiers"]): void
+  measure(viewport: BrowserViewport): void
   resize(viewport: BrowserViewport): void
 }>
 
@@ -26,29 +27,41 @@ export default function Surface({
   wheel,
   type,
   press,
+  measure,
   resize
 }: SurfaceProperties) {
   const element = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
   const [displayedFrames, setDisplayedFrames] = useState<BrowserFrames | null>(null)
+  const measureRef = useRef(measure)
+  const resizeRef = useRef(resize)
+
+  measureRef.current = measure
+  resizeRef.current = resize
 
   const isBlank = !tab || !tab.page.url || tab.page.url === "about:blank"
   const frameDisplayed = Boolean(tab?.frames && displayedFrames === tab.frames)
 
   useEffect(() => {
     const target = element.current
-    if (!target || !tab) return
+    if (!target) return
 
     let timer = 0
     const observer = new ResizeObserver(entries => {
       const size = entries[0]?.contentRect
       if (!size) return
 
-      window.clearTimeout(timer)
-      timer = window.setTimeout(() => resize({
+      const viewport = {
         width: Math.max(240, Math.min(1_920, Math.round(size.width))),
         height: Math.max(160, Math.min(1_080, Math.round(size.height)))
-      }), 120)
+      }
+
+      measureRef.current(viewport)
+
+      if (tab && (tab.page.viewport.width !== viewport.width || tab.page.viewport.height !== viewport.height)) {
+        window.clearTimeout(timer)
+        timer = window.setTimeout(() => resizeRef.current(viewport), 120)
+      }
     })
 
     observer.observe(target)
@@ -57,7 +70,7 @@ export default function Surface({
       window.clearTimeout(timer)
       observer.disconnect()
     }
-  }, [tab?.session, resize])
+  }, [tab?.session])
 
   useEffect(() => {
     const target = canvas.current

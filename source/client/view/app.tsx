@@ -1,4 +1,7 @@
 import { HostProvider, useHostTheme } from "@phreshos/react"
+import { useState } from "react"
+import type { BrowserViewport } from "@server/core/browser"
+import "./style.css"
 import useBrowser from "./use-browser"
 import Surface from "./surface"
 import Toolbar from "./toolbar"
@@ -16,6 +19,7 @@ export default function App() {
 function ThemedBrowser() {
   const theme = useHostTheme()
   const state = useBrowser()
+  const [viewport, setViewport] = useState<BrowserViewport | null>(null)
 
   const activeUrl = state.activeTab?.page.url
 
@@ -30,6 +34,9 @@ function ThemedBrowser() {
           <div className="state-icon">⚠️</div>
           <h2>Service Unavailable</h2>
           <p>Flambo's browser service is currently unavailable.</p>
+          <button type="button" className="retry-button" onClick={state.retry}>
+            <IconReload /> Try Again
+          </button>
         </div>
       </main>
     )
@@ -46,7 +53,7 @@ function ThemedBrowser() {
           <div className="state-icon">⚠️</div>
           <h2>Session Initialization Failed</h2>
           <p>{state.creationError}</p>
-          <button type="button" className="retry-button" onClick={() => void state.newTab()}>
+          <button type="button" className="retry-button" onClick={state.retry}>
             <IconReload /> Try Again
           </button>
         </div>
@@ -68,10 +75,10 @@ function ThemedBrowser() {
       <Tabs
         tabs={state.tabs}
         active={state.active}
-        creating={state.creating}
+        creating={state.creating || !viewport}
         select={state.select}
         close={session => void state.closeTab(session)}
-        create={() => void state.newTab()}
+        create={() => viewport && void state.newTab(viewport)}
       />
 
       <Toolbar
@@ -79,7 +86,7 @@ function ThemedBrowser() {
         back={() => void state.back()}
         forward={() => void state.forward()}
         reload={() => void state.reload()}
-        navigate={address => void state.navigate(address)}
+        navigate={address => viewport && void state.open(address, viewport)}
       />
 
       <Surface
@@ -91,6 +98,7 @@ function ThemedBrowser() {
         wheel={(deltaX, deltaY) => void state.wheel(deltaX, deltaY)}
         type={text => void state.type(text)}
         press={(key, modifiers) => void state.press(key, modifiers)}
+        measure={next => setViewport(current => sameViewport(current, next) ? current : next)}
         resize={viewport => void state.resize(viewport)}
       />
 
@@ -119,6 +127,10 @@ function ThemedBrowser() {
       </footer>
     </main>
   )
+}
+
+function sameViewport(left: BrowserViewport | null, right: BrowserViewport) {
+  return left?.width === right.width && left.height === right.height
 }
 
 function LoadingState({ message }: Readonly<{ message: string }>) {

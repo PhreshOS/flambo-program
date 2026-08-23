@@ -1,4 +1,4 @@
-import ChromiumEngine from "@server/view/chromium"
+import ChromiumEngine from "@server/core/chromium"
 import BrowserSessions from "@server/core/browser-sessions"
 
 const requested = Number(process.argv[2] ?? 4)
@@ -8,13 +8,15 @@ if (!Number.isInteger(requested) || requested < 1 || requested > 64) {
 }
 
 const engine = new ChromiumEngine()
-const sessions = new BrowserSessions(engine, { total: requested, perOwner: 1 })
+const sessions = new BrowserSessions(engine, { total: requested, perWorkspace: 1 })
 const started = performance.now()
 let result: Record<string, unknown> | undefined
 
 try {
-  const snapshots = await Promise.all(Array.from({ length: requested }, (_, index) => {
-    return sessions.create(`measure:${index}`, { width: 800, height: 500 })
+  const workspaces = Array.from({ length: requested }, (_, index) => `measure:${index}`)
+  await Promise.all(workspaces.map(workspace => sessions.createWorkspace(workspace)))
+  const snapshots = await Promise.all(workspaces.map(workspace => {
+    return sessions.create(workspace, { width: 800, height: 500 })
   }))
   const ready = performance.now()
 

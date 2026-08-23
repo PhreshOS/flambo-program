@@ -5,24 +5,28 @@ import {
   type CDPSession,
   type Page
 } from "playwright"
-import type { BrowserEngine, BrowserPage, FrameListener, PageFrame, PageSnapshot, PageState } from "@server/core/browser-engine"
-import type { BrowserViewport } from "@server/core/browser"
+import type {
+  BrowserEngine,
+  BrowserPage,
+  BrowserWorkspaceEngine,
+  FrameListener,
+  PageFrame,
+  PageSnapshot,
+  PageState
+} from "./browser-engine"
+import type { BrowserViewport } from "./browser"
 
-/** One shared Chromium process that creates an isolated context per session. */
+/** One shared Chromium process that creates one isolated context per Workspace. */
 export default class ChromiumEngine implements BrowserEngine {
   private browser: Promise<PlaywrightBrowser> | null = null
 
-  public async open(viewport: BrowserViewport) {
+  public async createWorkspace() {
     const browser = await this.instance()
     const context = await browser.newContext({
       acceptDownloads: false,
-      serviceWorkers: "block",
-      viewport
+      serviceWorkers: "block"
     })
-    const page = await context.newPage()
-    const protocol = await context.newCDPSession(page)
-
-    return new ChromiumPage(context, page, protocol)
+    return new ChromiumWorkspace(context)
   }
 
   public async close() {
@@ -41,6 +45,33 @@ export default class ChromiumEngine implements BrowserEngine {
   }
 }
 
+class ChromiumWorkspace implements BrowserWorkspaceEngine {
+  private closed = false
+
+  public constructor(private readonly context: BrowserContext) {}
+
+  public async open(viewport: BrowserViewport) {
+    if (this.closed) throw new Error("The Chromium workspace is closed")
+
+    const page = await this.context.newPage()
+
+    try {
+      await page.setViewportSize(viewport)
+      const protocol = await this.context.newCDPSession(page)
+      return new ChromiumPage(page, protocol)
+    } catch (error) {
+      await page.close().catch(() => undefined)
+      throw error
+    }
+  }
+
+  public async close() {
+    if (this.closed) return
+    this.closed = true
+    await this.context.close()
+  }
+}
+
 class ChromiumPage implements BrowserPage {
   private listener: FrameListener | null = null
   private streaming = false
@@ -49,7 +80,6 @@ class ChromiumPage implements BrowserPage {
   private lastFrame = 0
 
   public constructor(
-    private readonly context: BrowserContext,
     private readonly page: Page,
     private readonly protocol: CDPSession
   ) {
@@ -173,7 +203,8 @@ class ChromiumPage implements BrowserPage {
 
   public async close() {
     await this.stopFrames().catch(() => undefined)
-    await this.context.close()
+    await this.protocol.detach().catch(() => undefined)
+    await this.page.close()
   }
 
   private async updateTitle() {

@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto"
-import type { BrowserEngine, BrowserPage } from "./browser-engine"
+import type { BrowserEngine, BrowserPage, BrowserWorkspaceEngine } from "./browser-engine"
 import type {
   BrowserFrame,
   BrowserMetrics,
+  BrowserSession,
   BrowserSnapshot,
   BrowserViewport,
   BrowserWorkspace
@@ -10,12 +11,13 @@ import type {
 
 export type BrowserLimits = Readonly<{
   total: number
-  perOwner: number
+  perWorkspace: number
 }>
 
 type Session = {
-  owner: string
+  workspace: string
   page: BrowserPage
+  state: BrowserSession
   queue: Promise<void>
   streams: Map<string, Stream>
   wheel: {
@@ -32,15 +34,16 @@ type Stream = {
   timeout: ReturnType<typeof setTimeout> | null
 }
 
-const defaultLimits: BrowserLimits = { total: 64, perOwner: 16 }
+const defaultLimits: BrowserLimits = { total: 64, perWorkspace: 16 }
 const frameLeaseMilliseconds = 15_000
 
 /** Owns isolated browser sessions, ordered operations, limits, and capacity metrics. */
 export default class BrowserSessions {
   private readonly sessions = new Map<string, Session>()
-  private readonly ownerSessions = new Map<string, Set<string>>()
-  private readonly activeOwners = new Map<string, string>()
-  private readonly openingOwners = new Map<string, number>()
+  private readonly workspaceEngines = new Map<string, BrowserWorkspaceEngine>()
+  private readonly workspaceSessions = new Map<string, Set<string>>()
+  private readonly activeWorkspaces = new Map<string, string>()
+  private readonly openingWorkspaces = new Map<string, number>()
   private opening = 0
   private created = 0
   private sessionPeak = 0
@@ -57,58 +60,77 @@ export default class BrowserSessions {
   public constructor(
     private readonly engine: BrowserEngine,
     private readonly limits: BrowserLimits = defaultLimits,
-    private readonly leaseMilliseconds = frameLeaseMilliseconds
+    private readonly leaseMilliseconds = frameLeaseMilliseconds,
+    private readonly changed: (workspace: string) => unknown = () => undefined
   ) {
     if (!Number.isInteger(limits.total) || limits.total < 1) throw new Error("The total browser session limit must be a positive integer")
-    if (!Number.isInteger(limits.perOwner) || limits.perOwner < 1) throw new Error("The per-owner browser session limit must be a positive integer")
+    if (!Number.isInteger(limits.perWorkspace) || limits.perWorkspace < 1) throw new Error("The per-workspace browser session limit must be a positive integer")
     if (!Number.isInteger(leaseMilliseconds) || leaseMilliseconds < 1) throw new Error("The browser frame lease must be a positive integer")
   }
 
-  public async create(owner: string, viewport: BrowserViewport): Promise<BrowserSnapshot> {
-    this.reserve(owner)
+  public async createWorkspace(workspace: string) {
+    if (this.workspaceEngines.has(workspace)) throw new Error("The browser workspace already exists")
+
+    const engine = await this.measure(() => this.engine.createWorkspace())
+
+    if (this.workspaceEngines.has(workspace)) {
+      await engine.close().catch(() => undefined)
+      throw new Error("The browser workspace already exists")
+    }
+
+    this.workspaceEngines.set(workspace, engine)
+  }
+
+  public async create(workspace: string, viewport: BrowserViewport): Promise<BrowserSnapshot> {
+    this.reserve(workspace)
 
     const id = randomUUID()
     let page: BrowserPage
 
     try {
-      page = await this.measure(() => this.engine.open(viewport))
+      page = await this.measure(() => this.workspaceEngine(workspace).open(viewport))
     } finally {
-      this.release(owner)
+      this.release(workspace)
     }
 
     const session: Session = {
-      owner,
+      workspace,
       page,
+      state: { session: id, url: "about:blank", title: "", viewport },
       queue: Promise.resolve(),
       streams: new Map(),
       wheel: { deltaX: 0, deltaY: 0, task: null }
     }
 
     this.sessions.set(id, session)
-    this.ownerSessions.get(owner)?.add(id) ?? this.ownerSessions.set(owner, new Set([id]))
-    this.activeOwners.set(owner, id)
+    this.workspaceSessions.get(workspace)?.add(id) ?? this.workspaceSessions.set(workspace, new Set([id]))
+    this.activeWorkspaces.set(workspace, id)
     this.created += 1
     this.sessionPeak = Math.max(this.sessionPeak, this.sessions.size)
 
     try {
-      return await this.snapshot(owner, id)
+      const snapshot = await this.snapshot(workspace, id)
+      return snapshot
     } catch (error) {
-      this.detach(owner, id)
+      this.detach(workspace, id)
       await page.close().catch(() => undefined)
       throw error
     }
   }
 
-  public snapshot(owner: string, session: string) {
-    return this.run(owner, session, page => page.snapshot()).then(snapshot => ({ session, ...snapshot }))
+  public snapshot(workspace: string, session: string) {
+    return this.run(workspace, session, async page => {
+      const snapshot = await page.snapshot()
+      this.updateState(session, snapshot)
+      return { session, ...snapshot }
+    })
   }
 
-  public async workspace(owner: string): Promise<BrowserWorkspace> {
-    const ids = [...this.ownerSessions.get(owner) ?? []]
-    const sessions = await Promise.all(ids.map(id => {
-      return this.run(owner, id, page => page.state()).then(state => ({ session: id, ...state }))
-    }))
-    const selected = this.activeOwners.get(owner)
+  public workspace(workspace: string): Omit<BrowserWorkspace, "workspace" | "lifecycle" | "revision"> {
+    this.workspaceEngine(workspace)
+    const ids = [...this.workspaceSessions.get(workspace) ?? []]
+    const sessions = ids.map(id => this.inWorkspace(workspace, id).state)
+    const selected = this.activeWorkspaces.get(workspace)
 
     return {
       active: selected && ids.includes(selected) ? selected : ids.at(-1) ?? null,
@@ -116,57 +138,59 @@ export default class BrowserSessions {
     }
   }
 
-  public select(owner: string, id: string) {
-    this.owned(owner, id)
-    this.activeOwners.set(owner, id)
+  public select(workspace: string, id: string) {
+    this.inWorkspace(workspace, id)
+    this.activeWorkspaces.set(workspace, id)
   }
 
-  public navigate(owner: string, session: string, url: string) {
-    return this.actAndFrame(owner, session, page => page.navigate(url))
+  public navigate(workspace: string, session: string, url: string) {
+    return this.actAndFrame(workspace, session, page => page.navigate(url))
   }
 
-  public back(owner: string, session: string) { return this.actAndFrame(owner, session, page => page.back()) }
-  public forward(owner: string, session: string) { return this.actAndFrame(owner, session, page => page.forward()) }
-  public reload(owner: string, session: string) { return this.actAndFrame(owner, session, page => page.reload()) }
+  public back(workspace: string, session: string) { return this.actAndFrame(workspace, session, page => page.back()) }
+  public forward(workspace: string, session: string) { return this.actAndFrame(workspace, session, page => page.forward()) }
+  public reload(workspace: string, session: string) { return this.actAndFrame(workspace, session, page => page.reload()) }
 
-  public resize(owner: string, session: string, viewport: BrowserViewport) {
-    return this.act(owner, session, page => page.resize(viewport))
+  public resize(workspace: string, session: string, viewport: BrowserViewport) {
+    return this.actAndState(workspace, session, page => page.resize(viewport))
   }
 
-  public click(owner: string, session: string, x: number, y: number, button: "left" | "middle" | "right") {
-    return this.act(owner, session, page => page.click(x, y, button))
+  public click(workspace: string, session: string, x: number, y: number, button: "left" | "middle" | "right") {
+    return this.actAndState(workspace, session, page => page.click(x, y, button))
   }
 
-  public wheel(owner: string, session: string, deltaX: number, deltaY: number) {
-    const owned = this.owned(owner, session)
-    owned.wheel.deltaX += deltaX
-    owned.wheel.deltaY += deltaY
+  public wheel(workspace: string, session: string, deltaX: number, deltaY: number) {
+    const current = this.inWorkspace(workspace, session)
+    current.wheel.deltaX += deltaX
+    current.wheel.deltaY += deltaY
 
-    if (owned.wheel.task) return owned.wheel.task
+    if (current.wheel.task) return current.wheel.task
 
-    const task = this.run(owner, session, page => this.flushWheel(owned, page))
-    owned.wheel.task = task
+    const task = this.run(workspace, session, page => this.flushWheel(current, page))
+    current.wheel.task = task
     return task
   }
 
-  public type(owner: string, session: string, text: string) {
-    return this.act(owner, session, page => page.type(text))
+  public type(workspace: string, session: string, text: string) {
+    return this.actAndState(workspace, session, page => page.type(text))
   }
 
-  public press(owner: string, session: string, key: string) {
-    return this.act(owner, session, page => page.press(key))
+  public press(workspace: string, session: string, key: string) {
+    return this.actAndState(workspace, session, page => page.press(key))
   }
 
-  public startFrames(owner: string, id: string, event: string, listener: (frame: BrowserFrame) => unknown) {
-    const session = this.owned(owner, id)
+  public startFrames(workspace: string, id: string, event: string, listener: (frame: BrowserFrame) => unknown) {
+    const session = this.inWorkspace(workspace, id)
 
-    return this.run(owner, id, async page => {
+    return this.run(workspace, id, async page => {
       const existing = session.streams.get(event)
 
       if (existing) {
         existing.listener = listener
         this.renewStream(id, event, existing)
-        this.deliverFrame(id, event, existing, { session: id, ...await page.currentFrame() })
+        const frame = { session: id, ...await page.currentFrame() }
+        this.updateState(id, frame)
+        this.deliverFrame(id, event, existing, frame)
         return this.leaseMilliseconds
       }
 
@@ -182,7 +206,9 @@ export default class BrowserSessions {
 
       try {
         if (session.streams.size === 1) await page.startFrames(frame => this.publishFrame(id, frame))
-        this.deliverFrame(id, event, stream, { session: id, ...await page.currentFrame() })
+        const frame = { session: id, ...await page.currentFrame() }
+        this.updateState(id, frame)
+        this.deliverFrame(id, event, stream, frame)
       } catch (error) {
         this.dropStream(session, event)
         throw error
@@ -192,45 +218,60 @@ export default class BrowserSessions {
     })
   }
 
-  public keepFrames(owner: string, id: string, event: string) {
-    const session = this.owned(owner, id)
+  public keepFrames(workspace: string, id: string, event: string) {
+    const session = this.sessions.get(id)
+    if (!session || session.workspace !== workspace) return
     const stream = session.streams.get(event)
     if (stream) this.renewStream(id, event, stream)
   }
 
-  public stopFrames(owner: string, id: string, event: string) {
-    const session = this.owned(owner, id)
+  public stopFrames(workspace: string, id: string, event: string) {
+    const session = this.sessions.get(id)
+
+    // Stream cleanup may arrive after Session cleanup. Both operations are
+    // idempotent, so a late stop has already reached its intended state.
+    if (!session || session.workspace !== workspace) return Promise.resolve()
     if (!this.dropStream(session, event) || session.streams.size > 0) return Promise.resolve()
 
-    return this.run(owner, id, async page => {
+    return this.run(workspace, id, async page => {
       await page.stopFrames()
     })
   }
 
-  public async close(owner: string, id: string) {
-    const session = this.owned(owner, id)
-    this.detach(owner, id)
+  public async close(workspace: string, id: string) {
+    const session = this.inWorkspace(workspace, id)
+    this.detach(workspace, id)
     await session.queue
     this.dropStreams(session)
     await this.measure(() => session.page.close())
   }
 
-  public async closeOwner(owner: string) {
-    const ids = [...this.ownerSessions.get(owner) ?? []]
-    await Promise.all(ids.map(id => this.close(owner, id)))
-    this.activeOwners.delete(owner)
+  public async closeWorkspace(workspace: string) {
+    const engine = this.workspaceEngine(workspace)
+    this.workspaceEngines.delete(workspace)
+    const ids = [...this.workspaceSessions.get(workspace) ?? []]
+
+    try {
+      await Promise.all(ids.map(id => this.close(workspace, id)))
+      this.activeWorkspaces.delete(workspace)
+    } finally {
+      await this.measure(() => engine.close())
+    }
   }
 
   public async dispose() {
     const sessions = [...this.sessions.values()]
+    const workspaces = [...this.workspaceEngines.values()]
     this.sessions.clear()
-    this.ownerSessions.clear()
-    this.activeOwners.clear()
+    this.workspaceEngines.clear()
+    this.workspaceSessions.clear()
+    this.activeWorkspaces.clear()
     await Promise.all(sessions.map(async session => {
       await session.queue
       this.dropStreams(session)
       await session.page.close().catch(() => undefined)
     }))
+    await Promise.all(workspaces.map(workspace => workspace.close().catch(() => undefined)))
     this.streamActive = 0
     await this.engine.close()
   }
@@ -267,6 +308,7 @@ export default class BrowserSessions {
     if (!session) return
 
     const message = { session: id, ...frame }
+    this.updateState(id, frame)
     const bytes = encodedBytes(frame.image)
 
     for (const [event, stream] of session.streams) this.deliverFrame(id, event, stream, message, bytes)
@@ -334,16 +376,20 @@ export default class BrowserSessions {
     session.streams.clear()
   }
 
-  private act(owner: string, session: string, operation: (page: BrowserPage) => Promise<void>) {
-    return this.run(owner, session, operation)
-  }
+  private actAndFrame(workspace: string, id: string, operation: (page: BrowserPage) => Promise<void>) {
+    const session = this.inWorkspace(workspace, id)
 
-  private actAndFrame(owner: string, id: string, operation: (page: BrowserPage) => Promise<void>) {
-    const session = this.owned(owner, id)
-
-    return this.run(owner, id, async page => {
+    return this.run(workspace, id, async page => {
       await operation(page)
       if (session.streams.size > 0) this.publishFrame(id, await page.currentFrame())
+      else this.updateState(id, await page.state())
+    })
+  }
+
+  private actAndState(workspace: string, id: string, operation: (page: BrowserPage) => Promise<void>) {
+    return this.run(workspace, id, async page => {
+      await operation(page)
+      this.updateState(id, await page.state())
     })
   }
 
@@ -356,8 +402,8 @@ export default class BrowserSessions {
     return page.wheel(deltaX, deltaY)
   }
 
-  private run<Result>(owner: string, id: string, operation: (page: BrowserPage) => Promise<Result>): Promise<Result> {
-    const session = this.owned(owner, id)
+  private run<Result>(workspace: string, id: string, operation: (page: BrowserPage) => Promise<Result>): Promise<Result> {
+    const session = this.inWorkspace(workspace, id)
     const task = session.queue.then(() => this.measure(() => operation(session.page)))
 
     session.queue = task.then(() => undefined, () => undefined)
@@ -365,48 +411,66 @@ export default class BrowserSessions {
     return task
   }
 
-  private owned(owner: string, id: string) {
+  private inWorkspace(workspace: string, id: string) {
     const session = this.sessions.get(id)
 
-    if (!session || session.owner !== owner) throw new Error("The browser session does not exist")
+    if (!session || session.workspace !== workspace) throw new Error("The browser session does not exist in this workspace")
 
     return session
   }
 
-  private reserve(owner: string) {
+  private workspaceEngine(workspace: string) {
+    const engine = this.workspaceEngines.get(workspace)
+    if (!engine) throw new Error("The browser workspace does not exist")
+    return engine
+  }
+
+  private updateState(id: string, state: Omit<BrowserSession, "session">) {
+    const session = this.sessions.get(id)
+    if (!session) return
+
+    const next = { session: id, url: state.url, title: state.title, viewport: state.viewport }
+    if (sameState(session.state, next)) return
+
+    session.state = next
+    this.changed(session.workspace)
+  }
+
+  private reserve(workspace: string) {
+    this.workspaceEngine(workspace)
     if (this.sessions.size + this.opening >= this.limits.total) {
       throw new Error("The browser reached its total session limit")
     }
 
-    const owned = (this.ownerSessions.get(owner)?.size ?? 0) + (this.openingOwners.get(owner) ?? 0)
+    const used = (this.workspaceSessions.get(workspace)?.size ?? 0) + (this.openingWorkspaces.get(workspace) ?? 0)
 
-    if (owned >= this.limits.perOwner) throw new Error("The browser reached this consumer's session limit")
+    if (used >= this.limits.perWorkspace) throw new Error("The browser reached this workspace's session limit")
 
     this.opening += 1
-    this.openingOwners.set(owner, (this.openingOwners.get(owner) ?? 0) + 1)
+    this.openingWorkspaces.set(workspace, (this.openingWorkspaces.get(workspace) ?? 0) + 1)
   }
 
-  private release(owner: string) {
-    const owned = this.openingOwners.get(owner)
+  private release(workspace: string) {
+    const used = this.openingWorkspaces.get(workspace)
 
     this.opening -= 1
-    if (owned === 1) this.openingOwners.delete(owner)
-    else if (owned) this.openingOwners.set(owner, owned - 1)
+    if (used === 1) this.openingWorkspaces.delete(workspace)
+    else if (used) this.openingWorkspaces.set(workspace, used - 1)
   }
 
-  private detach(owner: string, id: string) {
+  private detach(workspace: string, id: string) {
     this.sessions.delete(id)
 
-    const owned = this.ownerSessions.get(owner)
-    owned?.delete(id)
+    const sessions = this.workspaceSessions.get(workspace)
+    sessions?.delete(id)
 
-    if (this.activeOwners.get(owner) === id) {
-      const next = owned ? [...owned].at(-1) : undefined
-      if (next) this.activeOwners.set(owner, next)
-      else this.activeOwners.delete(owner)
+    if (this.activeWorkspaces.get(workspace) === id) {
+      const next = sessions ? [...sessions].at(-1) : undefined
+      if (next) this.activeWorkspaces.set(workspace, next)
+      else this.activeWorkspaces.delete(workspace)
     }
 
-    if (owned?.size === 0) this.ownerSessions.delete(owner)
+    if (sessions?.size === 0) this.workspaceSessions.delete(workspace)
   }
 
   private async measure<Result>(operation: () => Promise<Result>) {
@@ -434,4 +498,11 @@ export default class BrowserSessions {
 function encodedBytes(value: string) {
   const padding = value.endsWith("==") ? 2 : value.endsWith("=") ? 1 : 0
   return Math.floor(value.length * 3 / 4) - padding
+}
+
+function sameState(left: BrowserSession, right: BrowserSession) {
+  return left.url === right.url
+    && left.title === right.title
+    && left.viewport.width === right.viewport.width
+    && left.viewport.height === right.viewport.height
 }

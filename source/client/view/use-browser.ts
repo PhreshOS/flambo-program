@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react"
-import { useServiceState } from "@phreshos/react"
+import { useEffect, useRef, useState, useSyncExternalStore } from "react"
+import Application from "@client/core/application"
+import type Workspace from "@client/core/workspace"
 import type {
   BrowserKeyRequest,
   BrowserMetrics,
@@ -7,7 +8,6 @@ import type {
   BrowserSnapshot,
   BrowserViewport
 } from "@server/core/browser"
-import { browser, browserService } from "./browser-service"
 import BrowserFrames from "./browser-frames"
 
 export type BrowserTab = Readonly<{
@@ -20,10 +20,9 @@ export type BrowserTab = Readonly<{
 
 type BrowserWorkspaceStatus = "pending" | "ready" | "failed"
 
-const initialViewport: BrowserViewport = { width: 900, height: 520 }
-
 export default function useBrowser() {
-  const service = useServiceState(browserService)
+  const [application] = useState(() => new Application())
+  const service = useSyncExternalStore(application.subscribe, application.snapshot, application.snapshot)
   const [tabs, setTabs] = useState<readonly BrowserTab[]>([])
   const [active, setActive] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
@@ -31,19 +30,36 @@ export default function useBrowser() {
   const [workspaceStatus, setWorkspaceStatus] = useState<BrowserWorkspaceStatus>("pending")
   const [metrics, setMetrics] = useState<BrowserMetrics>()
   const tabsRef = useRef(tabs)
+  const workspaceRef = useRef<Workspace | null>(null)
+  const stopWorkspace = useRef<() => void>(() => undefined)
   const initialized = useRef(false)
   const restoration = useRef(0)
   const creatingRef = useRef(false)
   const wheelInput = useRef({ session: "", deltaX: 0, deltaY: 0, frame: 0 })
   const textInput = useRef({ session: "", text: "", frame: 0 })
+  const activeTab = tabs.find(tab => tab.session === active)
 
   tabsRef.current = tabs
+
+  useEffect(() => {
+    application.start()
+
+    return () => {
+      stopWorkspace.current()
+      application.dispose()
+      if (wheelInput.current.frame) window.cancelAnimationFrame(wheelInput.current.frame)
+      if (textInput.current.frame) window.cancelAnimationFrame(textInput.current.frame)
+    }
+  }, [application])
 
   useEffect(() => {
     if (service?.enabled !== true) {
       restoration.current += 1
       initialized.current = false
       creatingRef.current = false
+      stopWorkspace.current()
+      stopWorkspace.current = () => undefined
+      workspaceRef.current = null
       setTabs([])
       setActive(null)
       setCreating(false)
@@ -65,7 +81,7 @@ export default function useBrowser() {
 
     const read = async () => {
       try {
-        const next = await browser.metrics()
+        const next = await application.metrics()
         if (live) setMetrics(next)
       } catch {
         if (live) setMetrics(undefined)
@@ -82,12 +98,13 @@ export default function useBrowser() {
   }, [service?.enabled])
 
   useEffect(() => {
-    if (!active || service?.enabled !== true) return
+    const workspace = workspaceRef.current
+    if (!workspace || !active || !activeTab || activeTab.page.url === "about:blank" || service?.enabled !== true) return
 
     let live = true
     let sequence = 0
     const event = `frame:${crypto.randomUUID()}`
-    const unsubscribe = browser.frames(event, frame => {
+    const unsubscribe = workspace.frames(event, frame => {
       if (!live || frame.session !== active || frame.sequence <= sequence) return
       sequence = frame.sequence
       const tab = tabsRef.current.find(tab => tab.session === active)
@@ -100,13 +117,13 @@ export default function useBrowser() {
     })
     let heartbeat = 0
 
-    void browser.startFrames(active, event).then(lease => {
+    void workspace.startFrames(active, event).then(lease => {
       if (!live) {
-        browser.stopFrames(active, event)
+        workspace.stopFrames(active, event)
         return
       }
 
-      heartbeat = window.setInterval(() => browser.keepFrames(active, event), Math.max(1_000, lease / 3))
+      heartbeat = window.setInterval(() => workspace.keepFrames(active, event), Math.max(1_000, lease / 3))
     }).catch(error => {
       if (live) update(active, { error: message(error) })
     })
@@ -115,14 +132,9 @@ export default function useBrowser() {
       live = false
       window.clearInterval(heartbeat)
       unsubscribe()
-      browser.stopFrames(active, event)
+      workspace.stopFrames(active, event)
     }
-  }, [active, service?.enabled])
-
-  useEffect(() => () => {
-    if (wheelInput.current.frame) window.cancelAnimationFrame(wheelInput.current.frame)
-    if (textInput.current.frame) window.cancelAnimationFrame(textInput.current.frame)
-  }, [])
+  }, [active, activeTab?.page.url, service?.enabled])
 
   async function restore(attempt: number) {
     if (creatingRef.current || service?.enabled !== true) return
@@ -132,24 +144,15 @@ export default function useBrowser() {
     setWorkspaceStatus("pending")
 
     try {
-      const workspace = await browser.workspace()
+      const workspace = await application.workspace()
       if (restoration.current !== attempt) return
+      workspaceRef.current = workspace
+      stopWorkspace.current()
+      stopWorkspace.current = workspace.subscribe(() => {
+        if (workspaceRef.current === workspace) reconcileWorkspace(workspace)
+      })
 
-      if (workspace.sessions.length > 0) {
-        setTabs(workspace.sessions.map(session => ({
-          session: session.session,
-          page: session,
-          frames: new BrowserFrames(),
-          error: null,
-          busy: false
-        })))
-        setActive(workspace.active ?? workspace.sessions[0]?.session ?? null)
-      } else {
-        const snapshot = await browser.create(initialViewport)
-        if (restoration.current !== attempt) return
-        setTabs([tab(snapshot)])
-        setActive(snapshot.session)
-      }
+      reconcileWorkspace(workspace)
       setWorkspaceStatus("ready")
     } catch (error) {
       if (restoration.current !== attempt) return
@@ -163,16 +166,20 @@ export default function useBrowser() {
     }
   }
 
-  async function newTab() {
+  async function newTab(viewport: BrowserViewport) {
     if (creatingRef.current || service?.enabled !== true) return
+    const workspace = currentWorkspace()
     creatingRef.current = true
     setCreating(true)
     setCreationError(null)
 
     try {
-      const snapshot = await browser.create(initialViewport)
-      setTabs(current => [...current, tab(snapshot)])
+      const snapshot = await workspace.create(viewport)
+      setTabs(current => current.some(tab => tab.session === snapshot.session)
+        ? current.map(tab => tab.session === snapshot.session ? { ...tab, page: page(snapshot) } : tab)
+        : [...current, tab(snapshot)])
       setActive(snapshot.session)
+      return snapshot
     } catch (error) {
       setCreationError(message(error))
     } finally {
@@ -181,7 +188,17 @@ export default function useBrowser() {
     }
   }
 
+  function retry() {
+    if (service?.enabled !== true) {
+      application.reconnect()
+      return
+    }
+    initialized.current = true
+    void restore(restoration.current += 1)
+  }
+
   async function closeTab(session: string) {
+    const workspace = currentWorkspace()
     const current = tabsRef.current
     const index = current.findIndex(tab => tab.session === session)
     const nextActive = current[index + 1]?.session ?? current[index - 1]?.session ?? null
@@ -190,25 +207,38 @@ export default function useBrowser() {
     setTabs(tabs => tabs.filter(tab => tab.session !== session))
     if (wasActive) setActive(nextActive)
 
-    await browser.close(session)
-    if (wasActive && nextActive) browser.select(nextActive)
+    try {
+      await workspace.closeSession(session)
+      if (wasActive && nextActive) await workspace.select(nextActive)
+    } catch (error) {
+      setCreationError(message(error))
+      await workspace.snapshot().catch(() => undefined)
+      reconcileWorkspace(workspace)
+    }
   }
 
   function navigate(value: string) {
     const url = address(value)
-    if (active) return perform(active, () => browser.navigate(active, url))
+    if (active) return perform(active, () => currentWorkspace().navigate(active, url))
   }
 
-  function back() { if (active) return perform(active, () => browser.back(active)) }
-  function forward() { if (active) return perform(active, () => browser.forward(active)) }
-  function reload() { if (active) return perform(active, () => browser.reload(active)) }
+  async function open(value: string, viewport: BrowserViewport) {
+    if (active) return navigate(value)
+
+    const snapshot = await newTab(viewport)
+    if (snapshot) return perform(snapshot.session, () => currentWorkspace().navigate(snapshot.session, address(value)))
+  }
+
+  function back() { if (active) return perform(active, () => currentWorkspace().back(active)) }
+  function forward() { if (active) return perform(active, () => currentWorkspace().forward(active)) }
+  function reload() { if (active) return perform(active, () => currentWorkspace().reload(active)) }
 
   function resize(viewport: BrowserViewport) {
-    if (active) browser.resize(active, viewport)
+    if (active) submit(active, () => currentWorkspace().resize(active, viewport))
   }
 
   function click(x: number, y: number, button: "left" | "middle" | "right") {
-    if (active) browser.click({ session: active, x, y, button })
+    if (active) submit(active, () => currentWorkspace().click({ session: active, x, y, button }))
   }
 
   function wheel(deltaX: number, deltaY: number) {
@@ -235,12 +265,12 @@ export default function useBrowser() {
   function press(key: string, modifiers: BrowserKeyRequest["modifiers"]) {
     if (!active) return
     flushText()
-    browser.press({ session: active, key, modifiers })
+    submit(active, () => currentWorkspace().press({ session: active, key, modifiers }))
   }
 
   function select(session: string) {
     setActive(session)
-    browser.select(session)
+    submit(session, () => currentWorkspace().select(session))
   }
 
   async function perform(session: string, operation: () => Promise<unknown>) {
@@ -261,7 +291,8 @@ export default function useBrowser() {
     if (pending.frame) window.cancelAnimationFrame(pending.frame)
 
     if (pending.session && (pending.deltaX || pending.deltaY)) {
-      browser.wheel({ session: pending.session, deltaX: pending.deltaX, deltaY: pending.deltaY })
+      const { session, deltaX, deltaY } = pending
+      submit(session, () => currentWorkspace().wheel({ session, deltaX, deltaY }))
     }
 
     wheelInput.current = { session: "", deltaX: 0, deltaY: 0, frame: 0 }
@@ -270,7 +301,10 @@ export default function useBrowser() {
   function flushText() {
     const pending = textInput.current
     if (pending.frame) window.cancelAnimationFrame(pending.frame)
-    if (pending.session && pending.text) browser.type(pending.session, pending.text)
+    if (pending.session && pending.text) {
+      const { session, text } = pending
+      submit(session, () => currentWorkspace().type(session, text))
+    }
     textInput.current = { session: "", text: "", frame: 0 }
   }
 
@@ -278,9 +312,35 @@ export default function useBrowser() {
     setTabs(current => current.map(tab => tab.session === session ? { ...tab, ...values } : tab))
   }
 
+  function submit(session: string, operation: () => Promise<unknown>) {
+    try {
+      void operation().catch(error => update(session, { error: message(error) }))
+    } catch (error) {
+      update(session, { error: message(error) })
+    }
+  }
+
+  function currentWorkspace(): Workspace {
+    const workspace = workspaceRef.current
+    if (!workspace) throw new Error("The browser workspace is not ready")
+    return workspace
+  }
+
+  function reconcileWorkspace(workspace: Workspace) {
+    const sessions = workspace.sessions
+
+    setTabs(current => sessions.map(session => {
+      const existing = current.find(tab => tab.session === session.session)
+      return existing
+        ? { ...existing, page: samePage(existing.page, session) ? existing.page : session }
+        : workspaceTab(session)
+    }))
+    setActive(workspace.active ?? sessions[0]?.session ?? null)
+  }
+
   return {
     active,
-    activeTab: tabs.find(tab => tab.session === active),
+    activeTab,
     back,
     click,
     closeTab,
@@ -290,9 +350,11 @@ export default function useBrowser() {
     metrics,
     navigate,
     newTab,
+    open,
     press,
     reload,
     resize,
+    retry,
     select,
     service,
     tabs,
@@ -345,6 +407,16 @@ function tab(snapshot: BrowserSnapshot): BrowserTab {
     session: snapshot.session,
     page: page(snapshot),
     frames: new BrowserFrames(frame),
+    error: null,
+    busy: false
+  }
+}
+
+function workspaceTab(session: BrowserSession): BrowserTab {
+  return {
+    session: session.session,
+    page: session,
+    frames: new BrowserFrames(),
     error: null,
     busy: false
   }

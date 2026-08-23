@@ -23,7 +23,13 @@ export interface BrowserPage {
   close(): Promise<void>
 }
 
-export interface BrowserEngine {
+/** One isolated browser resource owned by exactly one Flambo Workspace. */
+export interface BrowserWorkspaceEngine {
   open(viewport: BrowserViewport): Promise<BrowserPage>
+  close(): Promise<void>
+}
+
+export interface BrowserEngine {
+  createWorkspace(): Promise<BrowserWorkspaceEngine>
   close(): Promise<void>
 }

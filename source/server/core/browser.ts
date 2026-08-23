@@ -19,7 +19,15 @@ export type BrowserFrame = BrowserSnapshot & Readonly<{
   sequence: number
 }>
 
+export type BrowserWorkspaceLifecycle = "client" | "explicit"
+
+/** Launch option assigning a Flambo Client to an existing browser workspace. */
+export const browserWorkspaceOption = "browser-workspace"
+
 export type BrowserWorkspace = Readonly<{
+  workspace: string
+  lifecycle: BrowserWorkspaceLifecycle
+  revision: number
   active: string | null
   sessions: readonly BrowserSession[]
 }>
@@ -27,7 +35,7 @@ export type BrowserWorkspace = Readonly<{
 export type BrowserMetrics = Readonly<{
   capacity: Readonly<{
     total: number
-    perOwner: number
+    perWorkspace: number
   }>
   sessions: Readonly<{
     opening: number
@@ -70,9 +78,9 @@ export type BrowserKeyRequest = Readonly<{
 }>
 
 export type BrowserInputRequest =
-  | Readonly<{ action: "session.select", session: string }>
-  | Readonly<{ action: "resize", session: string, viewport: BrowserViewport }>
-  | Readonly<{ action: "pointer.click" } & BrowserPointerRequest>
-  | Readonly<{ action: "wheel" } & BrowserWheelRequest>
-  | Readonly<{ action: "keyboard.type", session: string, text: string }>
-  | Readonly<{ action: "keyboard.press" } & BrowserKeyRequest>
+  | Readonly<{ action: "session.select", workspace: string, session: string }>
+  | Readonly<{ action: "resize", workspace: string, session: string, viewport: BrowserViewport }>
+  | Readonly<{ action: "pointer.click", workspace: string } & BrowserPointerRequest>
+  | Readonly<{ action: "wheel", workspace: string } & BrowserWheelRequest>
+  | Readonly<{ action: "keyboard.type", workspace: string, session: string, text: string }>
+  | Readonly<{ action: "keyboard.press", workspace: string } & BrowserKeyRequest>

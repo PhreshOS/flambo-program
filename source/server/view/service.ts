@@ -1,244 +1,187 @@
 import type { Endpoint } from "@phreshos/core"
 import { current, host } from "@phreshos/server"
 import docs from "@/api-docs.md?raw"
-import ChromiumEngine from "./chromium"
-import BrowserSessions from "@server/core/browser-sessions"
-import type {
-  BrowserInputRequest,
-  BrowserKeyRequest,
-  BrowserPointerRequest,
-  BrowserViewport,
-  BrowserWheelRequest
-} from "@server/core/browser"
+import Application, { type WorkspaceClient, type WorkspaceClients } from "@server/core/application"
+import { browserWorkspaceOption, type BrowserInputRequest } from "@server/core/browser"
+import ChromiumEngine from "@server/core/chromium"
+import {
+  input,
+  navigation,
+  sessionCreate,
+  sessionRequest,
+  stream,
+  workspaceAttach,
+  workspaceCreate,
+  workspaceRequest
+} from "./contract"
 
-const sessions = new BrowserSessions(new ChromiumEngine())
-const owners = new WeakMap<Endpoint, Promise<string>>()
+const clients = new WeakMap<Endpoint, Promise<WorkspaceClient>>()
 
 export default async function service() {
-  current.answer("session.create", async message => {
-    const request = object(message.payload)
-    return sessions.create(await owner(message.from), viewport(request.viewport))
+  const application = new Application(new ChromiumEngine(), { clients: clientLifecycle() })
+
+  application.subscribeWorkspaces(workspace => {
+    void workspace.snapshot().then(snapshot => current.publish("workspace.change", snapshot)).catch(() => undefined)
   })
 
-  current.answer("session.list", async message => {
-    return sessions.workspace(await owner(message.from))
+  current.answer("workspace.create", async message => {
+    const request = workspaceCreate.parse(message.payload)
+    return (await application.createWorkspace(request.client)).snapshot()
+  })
+
+  current.answer("workspace.attach", async message => {
+    const request = workspaceAttach.parse(message.payload)
+    const workspace = await application.attachClient(await workspaceClient(message.from), request.workspace)
+    return workspace.snapshot()
+  })
+
+  current.answer("workspace.read", async message => {
+    const request = workspaceRequest.parse(message.payload)
+    return application.workspace(request.workspace).snapshot()
+  })
+
+  current.answer("workspace.close", async message => {
+    const request = workspaceRequest.parse(message.payload)
+    await application.closeWorkspace(request.workspace)
+    return null
+  })
+
+  current.answer("session.create", async message => {
+    const request = sessionCreate.parse(message.payload)
+    return application.workspace(request.workspace).create(request.viewport)
   })
 
   current.answer("session.close", async message => {
-    const request = object(message.payload)
-    await sessions.close(await owner(message.from), session(request.session))
+    const request = sessionRequest.parse(message.payload)
+    await application.workspace(request.workspace).closeSession(request.session)
+    return null
   })
 
   current.answer("snapshot", async message => {
-    const request = object(message.payload)
-    return sessions.snapshot(await owner(message.from), session(request.session))
+    const request = sessionRequest.parse(message.payload)
+    return application.workspace(request.workspace).capture(request.session)
   })
 
   current.answer("navigate", async message => {
-    const request = object(message.payload)
-    return sessions.navigate(await owner(message.from), session(request.session), navigationUrl(request.url))
+    const request = navigation.parse(message.payload)
+    await application.workspace(request.workspace).navigate(request.session, request.url)
+    return null
   })
 
   current.answer("back", async message => {
-    const request = object(message.payload)
-    return sessions.back(await owner(message.from), session(request.session))
+    const request = sessionRequest.parse(message.payload)
+    await application.workspace(request.workspace).back(request.session)
+    return null
   })
 
   current.answer("forward", async message => {
-    const request = object(message.payload)
-    return sessions.forward(await owner(message.from), session(request.session))
+    const request = sessionRequest.parse(message.payload)
+    await application.workspace(request.workspace).forward(request.session)
+    return null
   })
 
   current.answer("reload", async message => {
-    const request = object(message.payload)
-    return sessions.reload(await owner(message.from), session(request.session))
+    const request = sessionRequest.parse(message.payload)
+    await application.workspace(request.workspace).reload(request.session)
+    return null
+  })
+
+  current.answer("input", async message => {
+    await performInput(application, input.parse(message.payload))
+    return null
   })
 
   current.answer("stream.start", async message => {
-    const request = object(message.payload)
-    const event = streamEvent(request.event)
-    return sessions.startFrames(await owner(message.from), session(request.session), event, frame => current.publish(event, frame))
+    const request = stream.parse(message.payload)
+    return application.workspace(request.workspace).startFrames(
+      request.session,
+      request.event,
+      frame => current.publish(request.event, frame)
+    )
   })
 
   current.answer("stream.stop", async message => {
-    const request = object(message.payload)
-    await sessions.stopFrames(await owner(message.from), session(request.session), streamEvent(request.event))
+    const request = stream.parse(message.payload)
+    await application.stopFrames(request.workspace, request.session, request.event)
+    return null
   })
 
   current.subscribe("stream.keepalive", message => {
-    const request = streamControl(message.payload)
-    if (!request) return
-    void owner(message.from).then(identity => sessions.keepFrames(identity, request.session, request.event)).catch(() => undefined)
+    const request = stream.safeParse(message.payload)
+    if (!request.success) return
+    application.keepFrames(request.data.workspace, request.data.session, request.data.event)
   })
 
   current.subscribe("stream.stop", message => {
-    const request = streamControl(message.payload)
-    if (!request) return
-    void owner(message.from).then(identity => sessions.stopFrames(identity, request.session, request.event)).catch(() => undefined)
+    const request = stream.safeParse(message.payload)
+    if (!request.success) return
+    void application.stopFrames(request.data.workspace, request.data.session, request.data.event).catch(() => undefined)
   })
 
-  current.subscribe("input", message => {
-    let request: BrowserInputRequest
+  current.answer("metrics", () => application.metrics())
 
-    try {
-      request = input(message.payload)
-    } catch {
-      return
-    }
-
-    void owner(message.from).then(identity => performInput(identity, request)).catch(() => undefined)
-  })
-
-  current.answer("metrics", () => sessions.metrics())
-
-  host.process.subscribe("exit", ({ process }) => {
-    void sessions.closeOwner(process.identity)
-  })
-
-  await current.enableService({ name: "browser", docs })
+  try {
+    await current.enableService({ name: "browser", docs })
+  } catch (error) {
+    await application.dispose()
+    throw error
+  }
 }
 
-function owner(endpoint: Endpoint) {
-  const existing = owners.get(endpoint)
+function clientLifecycle(): WorkspaceClients {
+  return {
+    async create(workspace) {
+      const program = await current.program()
+      const process = await program.process.create({
+        server: false,
+        client: true,
+        options: { [browserWorkspaceOption]: workspace }
+      })
+      return processClient(process)
+    },
+    subscribe(listener) {
+      const stopEndpoint = host.process.subscribe("endpointStop", endpoint => {
+        void workspaceClient(endpoint).then(client => listener(client.identity)).catch(() => undefined)
+      })
+      const stopProcess = host.process.subscribe("exit", ({ process }) => listener(process.identity))
+      return () => {
+        stopEndpoint()
+        stopProcess()
+      }
+    }
+  }
+}
+
+function workspaceClient(endpoint: Endpoint) {
+  const existing = clients.get(endpoint)
   if (existing) return existing
 
-  const identity = endpoint.process().then(process => {
-    return process.identity
+  const client = endpoint.process().then(async process => {
+    if (endpoint !== process.client) throw new Error("A browser Workspace can be attached only by a Client")
+    return processClient(process)
   })
-  owners.set(endpoint, identity)
-  return identity
+  clients.set(endpoint, client)
+  return client
 }
 
-function performInput(owner: string, request: BrowserInputRequest) {
-  switch (request.action) {
-    case "session.select": return sessions.select(owner, request.session)
-    case "resize": return sessions.resize(owner, request.session, request.viewport)
-    case "pointer.click": return sessions.click(owner, request.session, request.x, request.y, request.button ?? "left")
-    case "wheel": return sessions.wheel(owner, request.session, request.deltaX, request.deltaY)
-    case "keyboard.type": return sessions.type(owner, request.session, request.text)
-    case "keyboard.press": {
-      const chord = [...request.modifiers ?? [], request.key].join("+")
-      return sessions.press(owner, request.session, chord)
-    }
+async function processClient(process: Awaited<ReturnType<Endpoint["process"]>>): Promise<WorkspaceClient> {
+  return {
+    identity: process.identity,
+    assignment: await process.option(browserWorkspaceOption),
+    exited: () => process.exited(),
+    exit: () => process.exit()
   }
 }
 
-function input(value: unknown): BrowserInputRequest {
-  const request = object(value)
+function performInput(application: Application, request: BrowserInputRequest) {
+  const workspace = application.workspace(request.workspace)
 
   switch (request.action) {
-    case "session.select": return {
-      action: "session.select",
-      session: session(request.session)
-    }
-    case "resize": return {
-      action: "resize",
-      session: session(request.session),
-      viewport: viewport(request.viewport)
-    }
-    case "pointer.click": return { action: "pointer.click", ...pointer(request) }
-    case "wheel": return { action: "wheel", ...wheel(request) }
-    case "keyboard.type": return {
-      action: "keyboard.type",
-      session: session(request.session),
-      text: string(request.text, "Keyboard text", 4_096)
-    }
-    case "keyboard.press": return { action: "keyboard.press", ...key(request) }
-    default: throw new Error("The browser input action is invalid")
+    case "session.select": return Promise.resolve(workspace.select(request.session))
+    case "resize": return workspace.resize(request.session, request.viewport)
+    case "pointer.click": return workspace.click(request.session, request.x, request.y, request.button ?? "left")
+    case "wheel": return workspace.wheel(request.session, request.deltaX, request.deltaY)
+    case "keyboard.type": return workspace.type(request.session, request.text)
+    case "keyboard.press": return workspace.press(request.session, [...request.modifiers ?? [], request.key].join("+"))
   }
-}
-
-function streamControl(value: unknown) {
-  try {
-    const request = object(value)
-    return { session: session(request.session), event: streamEvent(request.event) }
-  } catch {
-    return null
-  }
-}
-
-function streamEvent(value: unknown) {
-  const event = string(value, "Browser frame event", 100)
-  if (!/^frame:[0-9a-f-]{36}$/.test(event)) throw new Error("The Browser frame event is invalid")
-  return event
-}
-
-function viewport(value: unknown): BrowserViewport {
-  const request = object(value)
-  const width = integer(request.width, "Viewport width", 240, 1_920)
-  const height = integer(request.height, "Viewport height", 160, 1_080)
-  return { width, height }
-}
-
-function pointer(value: unknown): BrowserPointerRequest {
-  const request = object(value)
-  const button = request.button
-
-  if (button !== undefined && button !== "left" && button !== "middle" && button !== "right") {
-    throw new Error("The pointer button is invalid")
-  }
-
-  return {
-    session: session(request.session),
-    x: finite(request.x, "Pointer x", 0, 1_920),
-    y: finite(request.y, "Pointer y", 0, 1_080),
-    ...button && { button }
-  }
-}
-
-function wheel(value: unknown): BrowserWheelRequest {
-  const request = object(value)
-  return {
-    session: session(request.session),
-    deltaX: finite(request.deltaX, "Wheel deltaX", -10_000, 10_000),
-    deltaY: finite(request.deltaY, "Wheel deltaY", -10_000, 10_000)
-  }
-}
-
-function key(value: unknown): BrowserKeyRequest {
-  const request = object(value)
-  const modifiers = request.modifiers
-
-  if (modifiers !== undefined && (!Array.isArray(modifiers) || modifiers.some(modifier => {
-    return modifier !== "Alt" && modifier !== "Control" && modifier !== "Meta" && modifier !== "Shift"
-  }))) throw new Error("Keyboard modifiers are invalid")
-
-  return {
-    session: session(request.session),
-    key: string(request.key, "Keyboard key", 100),
-    ...modifiers && { modifiers: modifiers as BrowserKeyRequest["modifiers"] }
-  }
-}
-
-function navigationUrl(value: unknown) {
-  const address = string(value, "Navigation URL", 8_192)
-  if (address === "about:blank") return address
-
-  const url = new URL(address)
-  if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error("Navigation requires an HTTP or HTTPS URL")
-  return url.href
-}
-
-function session(value: unknown) { return string(value, "Browser session", 100) }
-
-function string(value: unknown, name: string, maximum: number) {
-  if (typeof value !== "string" || value.length === 0 || value.length > maximum) throw new Error(`${name} is invalid`)
-  return value
-}
-
-function integer(value: unknown, name: string, minimum: number, maximum: number) {
-  if (!Number.isInteger(value)) throw new Error(`${name} must be an integer`)
-  return finite(value, name, minimum, maximum)
-}
-
-function finite(value: unknown, name: string, minimum: number, maximum: number) {
-  if (typeof value !== "number" || !Number.isFinite(value) || value < minimum || value > maximum) {
-    throw new Error(`${name} must be between ${minimum} and ${maximum}`)
-  }
-  return value
-}
-
-function object(value: unknown): Record<string, unknown> {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) throw new Error("The browser request must be an object")
-  return value as Record<string, unknown>
 }

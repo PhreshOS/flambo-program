@@ -9,6 +9,7 @@ export default defineConfig({
   buildCommand: "vite-node scripts/build.ts",
   server: {
     location: "dist/server",
+    start: false,
     serviceable: true,
     startCommand: "node main.js",
     installCommand: "npm install --omit=dev && npx playwright install --with-deps chromium",
