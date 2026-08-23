@@ -11,7 +11,7 @@ import type {
   BrowserWorkspace
 } from "@server/core/browser"
 
-export const browserService = host.service({
+export const browserService = host.service.prepare({
   program: "flambo",
   endpoint: "server",
   name: "browser"

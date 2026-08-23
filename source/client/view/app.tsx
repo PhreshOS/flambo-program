@@ -23,13 +23,13 @@ function ThemedBrowser() {
     return <LoadingState message="Connecting to Flambo…" />
   }
 
-  if (state.service.disabled) {
+  if (!state.service.enabled) {
     return (
       <main className="service-state error">
         <div className="state-card">
           <div className="state-icon">⚠️</div>
           <h2>Service Unavailable</h2>
-          <p>Flambo's browser service is currently disabled.</p>
+          <p>Flambo's browser service is currently unavailable.</p>
         </div>
       </main>
     )

@@ -91,7 +91,7 @@ export default async function service() {
 
   current.answer("metrics", () => sessions.metrics())
 
-  host.subscribe("processExit", ({ process }) => {
+  host.process.subscribe("exit", ({ process }) => {
     void sessions.closeOwner(process.identity)
   })
 

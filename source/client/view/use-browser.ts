@@ -40,7 +40,7 @@ export default function useBrowser() {
   tabsRef.current = tabs
 
   useEffect(() => {
-    if (service?.disabled !== false) {
+    if (service?.enabled !== true) {
       restoration.current += 1
       initialized.current = false
       creatingRef.current = false
@@ -56,10 +56,10 @@ export default function useBrowser() {
     if (initialized.current) return
     initialized.current = true
     void restore(restoration.current += 1)
-  }, [service?.disabled])
+  }, [service?.enabled])
 
   useEffect(() => {
-    if (service?.disabled !== false) return
+    if (service?.enabled !== true) return
 
     let live = true
 
@@ -79,10 +79,10 @@ export default function useBrowser() {
       live = false
       window.clearInterval(interval)
     }
-  }, [service?.disabled])
+  }, [service?.enabled])
 
   useEffect(() => {
-    if (!active || service?.disabled !== false) return
+    if (!active || service?.enabled !== true) return
 
     let live = true
     let sequence = 0
@@ -117,7 +117,7 @@ export default function useBrowser() {
       unsubscribe()
       browser.stopFrames(active, event)
     }
-  }, [active, service?.disabled])
+  }, [active, service?.enabled])
 
   useEffect(() => () => {
     if (wheelInput.current.frame) window.cancelAnimationFrame(wheelInput.current.frame)
@@ -125,7 +125,7 @@ export default function useBrowser() {
   }, [])
 
   async function restore(attempt: number) {
-    if (creatingRef.current || service?.disabled !== false) return
+    if (creatingRef.current || service?.enabled !== true) return
     creatingRef.current = true
     setCreating(true)
     setCreationError(null)
@@ -164,7 +164,7 @@ export default function useBrowser() {
   }
 
   async function newTab() {
-    if (creatingRef.current || service?.disabled !== false) return
+    if (creatingRef.current || service?.enabled !== true) return
     creatingRef.current = true
     setCreating(true)
     setCreationError(null)
