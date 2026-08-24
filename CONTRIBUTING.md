@@ -13,8 +13,8 @@ bun run verify
 ```
 
 The repository must remain independently installable, buildable, packageable,
-and runnable without the PhreshOS workspace around it. Changes to the public
-browser service must update `api-docs.md` and its lifecycle verification.
+and runnable without the PhreshOS workspace around it. Changes to agent-usable
+browser behavior must update `agent.md` and its focused verification.
 
 ## Pull requests
 

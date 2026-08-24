@@ -32,8 +32,8 @@ bun run dev
 and validates the production artifact against the Program declaration.
 
 The accepted rebuild and ownership model are recorded in
-[ARCHITECTURE.md](ARCHITECTURE.md). The public service contract is documented
-in [api-docs.md](api-docs.md).
+[ARCHITECTURE.md](ARCHITECTURE.md). Program-specific operating knowledge for
+agents is documented in [agent.md](agent.md).
 
 ## License
 

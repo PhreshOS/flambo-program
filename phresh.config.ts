@@ -6,11 +6,11 @@ export default defineConfig({
   description: "The official PhreshOS web browser.",
   version: "0.1.11",
   icon: "flambo-icon.png",
+  agent: "agent.md",
   buildCommand: "vite-node scripts/build.ts",
   server: {
     location: "dist/server",
     start: false,
-    serviceDocs: "api-docs.md",
     startCommand: "node main.js",
     installCommand: "npm install --omit=dev && npx playwright install --with-deps chromium",
     development: {
