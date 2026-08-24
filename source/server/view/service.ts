@@ -28,6 +28,10 @@ export default async function service() {
     return (await application.createWorkspace(request.client)).snapshot()
   })
 
+  current.answer("workspace.list", async () => {
+    return Promise.all(application.listWorkspaces().map(workspace => workspace.snapshot()))
+  })
+
   current.answer("workspace.attach", async message => {
     const request = workspaceAttach.parse(message.payload)
     const workspace = await application.attachClient(await workspaceClient(message.from), request.workspace)

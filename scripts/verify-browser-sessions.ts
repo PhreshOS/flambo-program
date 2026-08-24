@@ -247,6 +247,11 @@ const launched = await application.createWorkspace(true)
 let workspaceChanges = 0
 application.subscribeWorkspaces(() => { workspaceChanges += 1 })
 
+assert.deepEqual(
+  application.listWorkspaces().map(workspace => workspace.identity),
+  [attached.identity, isolated.identity, explicit.identity, launched.identity]
+)
+
 assert.equal(attached, sameAttached)
 assert.notEqual(attached.identity, isolated.identity)
 assert.equal(launched.identity, launchedWorkspace)
@@ -279,6 +284,7 @@ await assert.rejects(isolated.capture(attachedSession.session), /does not exist 
 
 await clientStopped("client:one")
 assert.throws(() => application.workspace(attached.identity), /workspace does not exist/)
+assert.equal(application.listWorkspaces().some(workspace => workspace.identity === attached.identity), false)
 assert.equal(application.metrics().sessions.active, 1)
 assert.equal((await explicit.snapshot()).sessions.length, 1)
 

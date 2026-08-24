@@ -72,6 +72,12 @@ export default class Application {
     return workspace
   }
 
+  /** Returns every live authoritative Workspace in creation order. */
+  public listWorkspaces() {
+    this.ensureOpen()
+    return Object.freeze([...this.workspaces.values()])
+  }
+
   public async createWorkspace(withClient: boolean) {
     this.ensureOpen()
 

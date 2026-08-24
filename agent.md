@@ -24,7 +24,8 @@ same workspace share cookies and storage; different workspaces do not.
 The Server Endpoint accepts these request-response events:
 
 - `workspace.create` — `{ client?: boolean }` → `BrowserWorkspace`
-- `workspace.attach` — `{ workspace, client }` → `BrowserWorkspace`
+- `workspace.list` — no payload → `BrowserWorkspace[]`
+- `workspace.attach` — `{ workspace? }` → `BrowserWorkspace` (Client Endpoint only)
 - `workspace.read` — `{ workspace }` → `BrowserWorkspace`
 - `workspace.close` — `{ workspace }` → `null`
 
@@ -47,6 +48,10 @@ the real viewport.
 sessions }`. A workspace identity may be shared deliberately when multiple
 operators should work on the same browser state. Workspaces remain isolated
 otherwise.
+
+Use `workspace.list` to discover live workspaces and retain their complete
+identities. Do not infer a workspace identity from a Process identity or an
+abbreviated value remembered from prose.
 
 The Server Endpoint emits `workspace.change` with the latest revisioned
 `BrowserWorkspace` whenever sessions, active selection, or page state changes.
