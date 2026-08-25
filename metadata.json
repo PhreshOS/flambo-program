@@ -1,0 +1,11 @@
+{
+    "schema": 1,
+    "identity": "flambo",
+    "version": "0.1.13",
+    "name": "Flambo",
+    "description": "A shared browser for people and agents working through synchronized Workspaces.",
+    "icon": "icon.png",
+    "categories": ["Internet"],
+    "keywords": ["browser", "web", "workspace", "automation"],
+    "website": "https://github.com/PhreshOS/flambo-program"
+}
