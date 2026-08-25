@@ -6,6 +6,9 @@ export default defineConfig({
   description: "The official PhreshOS web browser.",
   version: "0.1.13",
   icon: "icon.png",
+  categories: ["Internet"],
+  keywords: ["browser", "web", "workspace", "automation"],
+  website: "https://github.com/PhreshOS/flambo-program",
   agent: "agent.md",
   buildCommand: "vite-node scripts/build.ts",
   server: {
@@ -13,6 +16,7 @@ export default defineConfig({
     start: false,
     startCommand: "node main.js",
     installCommand: "npm install --omit=dev && npx playwright install --with-deps chromium",
+    uninstallCommand: "npx playwright uninstall",
     development: {
       startCommand: "vite-node source/server/main.ts"
     }

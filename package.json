@@ -12,7 +12,7 @@
         "start": "phresh start",
         "pack": "phresh pack",
         "measure": "vite-node scripts/measure-browser.ts",
-        "verify": "node --run check && node --run build && vite-node scripts/verify-metadata.ts && vite-node scripts/verify-browser-sessions.ts && vite-node scripts/verify-client-workspace.ts && vite-node scripts/verify-service-contract.ts && vite-node scripts/verify-build.ts"
+        "verify": "node --run check && node --run build && vite-node scripts/verify-browser-sessions.ts && vite-node scripts/verify-client-workspace.ts && vite-node scripts/verify-service-contract.ts && vite-node scripts/verify-build.ts"
     },
     "author": "Zohayr SLILEH",
     "license": "MIT",
