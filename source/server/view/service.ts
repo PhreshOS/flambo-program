@@ -1,5 +1,5 @@
 import type { Endpoint } from "@phreshos/core"
-import { current, host } from "@phreshos/server"
+import { current, system } from "@phreshos/server"
 import Application, { type WorkspaceClient, type WorkspaceClients } from "@server/core/application"
 import { browserWorkspaceOption, type BrowserInputRequest } from "@server/core/browser"
 import ChromiumEngine from "@server/core/chromium"
@@ -143,10 +143,10 @@ function clientLifecycle(): WorkspaceClients {
       return processClient(process)
     },
     subscribe(listener) {
-      const stopEndpoint = host.process.subscribe("endpointStop", endpoint => {
+      const stopEndpoint = system.process.subscribe("endpointStop", endpoint => {
         void workspaceClient(endpoint).then(client => listener(client.identity)).catch(() => undefined)
       })
-      const stopProcess = host.process.subscribe("exit", ({ process }) => listener(process.identity))
+      const stopProcess = system.process.subscribe("exit", ({ process }) => listener(process.identity))
       return () => {
         stopEndpoint()
         stopProcess()

@@ -1,4 +1,4 @@
-import { HostProvider, useHostTheme } from "@phreshos/react"
+import { SystemProvider, useSystemTheme } from "@phreshos/react"
 import { useState } from "react"
 import type { BrowserViewport } from "@server/core/browser"
 import "./style.css"
@@ -10,14 +10,14 @@ import { IconGlobe, IconReload, IconSparkles } from "./icons"
 
 export default function App() {
   return (
-    <HostProvider provide={["theme"]} fallback={<LoadingState message="Initializing PhreshOS…" />}>
+    <SystemProvider provide={["theme"]} fallback={<LoadingState message="Initializing PhreshOS…" />}>
       <ThemedBrowser />
-    </HostProvider>
+    </SystemProvider>
   )
 }
 
 function ThemedBrowser() {
-  const theme = useHostTheme()
+  const theme = useSystemTheme()
   const state = useBrowser()
   const [viewport, setViewport] = useState<BrowserViewport | null>(null)
 

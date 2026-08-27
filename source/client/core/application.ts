@@ -1,4 +1,4 @@
-import { current, host } from "@phreshos/client"
+import { current, system } from "@phreshos/client"
 import { browserWorkspaceOption, type BrowserMetrics, type BrowserWorkspace } from "@server/core/browser"
 import Workspace, { type WorkspaceBoundary } from "./workspace"
 
@@ -6,7 +6,7 @@ export type ApplicationState = Readonly<{ enabled: boolean }> | undefined
 
 /** Client application coordinating local Workspace peers with Flambo Server. */
 export default class Application {
-  private readonly service = host.service({
+  private readonly service = system.service({
     program: "flambo",
     endpoint: "server",
     name: "browser"
