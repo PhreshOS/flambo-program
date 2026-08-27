@@ -1,4 +1,5 @@
-import { SystemProvider, useSystemTheme } from "@phreshos/react"
+import { SystemProvider, useSystemAppearance, useSystemTheme } from "@phreshos/react"
+import { AppearanceProvider, useResolveTheme } from "@phreshos/react-ui"
 import { useState } from "react"
 import type { BrowserViewport } from "@server/core/browser"
 import "./style.css"
@@ -10,14 +11,28 @@ import { IconGlobe, IconReload, IconSparkles } from "./icons"
 
 export default function App() {
   return (
-    <SystemProvider provide={["theme"]} fallback={<LoadingState message="Initializing PhreshOS…" />}>
+    <SystemProvider provide={["appearance", "theme"]} fallback={<LoadingState message="Initializing PhreshOS…" />}>
       <ThemedBrowser />
     </SystemProvider>
   )
 }
 
 function ThemedBrowser() {
+  const appearance = useSystemAppearance()
   const theme = useSystemTheme()
+
+  return <AppearanceProvider appearance={appearance} theme={theme}>
+    <ResolvedBrowser />
+  </AppearanceProvider>
+}
+
+function ResolvedBrowser() {
+  const appearance = useSystemAppearance()
+  const background = useResolveTheme(appearance.background)
+  const foreground = useResolveTheme(appearance.foreground)
+  const accent = useResolveTheme(appearance.accent)
+  const radius = useResolveTheme(appearance.radius)
+  const spacing = useResolveTheme(appearance.spacing)
   const state = useBrowser()
   const [viewport, setViewport] = useState<BrowserViewport | null>(null)
 
@@ -65,11 +80,11 @@ function ThemedBrowser() {
     <main
       className="browser-shell"
       style={{
-        "--theme-bg": theme.background,
-        "--theme-fg": theme.foreground,
-        "--theme-accent": theme.accent,
-        "--theme-radius": `${theme.radius}px`,
-        "--theme-spacing": `${theme.spacing}px`
+        "--theme-bg": background,
+        "--theme-fg": foreground,
+        "--theme-accent": accent,
+        "--theme-radius": `${radius}px`,
+        "--theme-spacing": `${spacing}px`
       } as React.CSSProperties}
     >
       <Tabs
