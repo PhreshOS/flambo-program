@@ -1,4 +1,4 @@
-import { SystemProvider, useSystemAppearance, useSystemTheme } from "@phreshos/react"
+import { SystemProvider, useDesktopPreferences, useSystemAppearance } from "@phreshos/react"
 import { AppearanceProvider, useResolveTheme } from "@phreshos/react-ui"
 import { useState } from "react"
 import type { BrowserViewport } from "@server/core/browser"
@@ -11,7 +11,7 @@ import { IconGlobe, IconReload, IconSparkles } from "./icons"
 
 export default function App() {
   return (
-    <SystemProvider provide={["appearance", "theme"]} fallback={<LoadingState message="Initializing PhreshOS…" />}>
+    <SystemProvider provide={["appearance", "desktopPreferences"]} fallback={<LoadingState message="Initializing PhreshOS…" />}>
       <ThemedBrowser />
     </SystemProvider>
   )
@@ -19,7 +19,7 @@ export default function App() {
 
 function ThemedBrowser() {
   const appearance = useSystemAppearance()
-  const theme = useSystemTheme()
+  const { theme } = useDesktopPreferences()
 
   return <AppearanceProvider appearance={appearance} theme={theme}>
     <ResolvedBrowser />
