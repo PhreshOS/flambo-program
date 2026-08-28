@@ -14,7 +14,7 @@ export default defineConfig({
   server: {
     location: "dist/server",
     start: false,
-    startCommand: "node main.js",
+    entryFile: "main.js",
     installCommand: "npm install --omit=dev && npx playwright install --with-deps chromium",
     uninstallCommand: "npx playwright uninstall",
     development: {
