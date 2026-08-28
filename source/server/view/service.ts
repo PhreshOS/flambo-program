@@ -155,7 +155,9 @@ function clientLifecycle(): WorkspaceClients {
   }
 }
 
-function workspaceClient(endpoint: Endpoint) {
+function workspaceClient(endpoint: Endpoint | null) {
+  if (!endpoint) throw new Error("A browser Workspace can be attached only by a Client")
+
   const existing = clients.get(endpoint)
   if (existing) return existing
 
