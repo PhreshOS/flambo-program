@@ -1,4 +1,4 @@
-import type { Endpoint } from "@phreshos/core"
+import type { Endpoint, SystemEndpointEntity } from "@phreshos/core"
 import { current, system } from "@phreshos/server"
 import Application, { type WorkspaceClient, type WorkspaceClients } from "@server/core/application"
 import { browserWorkspaceOption, type BrowserInputRequest } from "@server/core/browser"
@@ -14,7 +14,7 @@ import {
   workspaceRequest
 } from "./contract"
 
-const clients = new WeakMap<Endpoint, Promise<WorkspaceClient>>()
+const clients = new Map<string, Promise<WorkspaceClient>>()
 
 export default async function service() {
   const application = new Application(new ChromiumEngine(), { clients: clientLifecycle() })
@@ -140,13 +140,18 @@ function clientLifecycle(): WorkspaceClients {
         client: true,
         options: { [browserWorkspaceOption]: workspace }
       })
-      return processClient(process)
+      const client = processClient(process)
+      clients.set(process.identity, client)
+      return client
     },
     subscribe(listener) {
       const stopEndpoint = system.process.subscribe("endpointStop", endpoint => {
-        void workspaceClient(endpoint).then(client => listener(client.identity)).catch(() => undefined)
+        void releaseWorkspaceClient(endpoint, listener).catch(() => undefined)
       })
-      const stopProcess = system.process.subscribe("exit", ({ process }) => listener(process.identity))
+      const stopProcess = system.process.subscribe("exit", ({ process }) => {
+        clients.delete(process.identity)
+        listener(process.identity)
+      })
       return () => {
         stopEndpoint()
         stopProcess()
@@ -155,18 +160,26 @@ function clientLifecycle(): WorkspaceClients {
   }
 }
 
-function workspaceClient(endpoint: Endpoint | null) {
+async function workspaceClient(endpoint: Endpoint | null) {
   if (!endpoint) throw new Error("A browser Workspace can be attached only by a Client")
 
-  const existing = clients.get(endpoint)
+  const process = await endpoint.process()
+  if (endpoint !== process.client) throw new Error("A browser Workspace can be attached only by a Client")
+
+  const existing = clients.get(process.identity)
   if (existing) return existing
 
-  const client = endpoint.process().then(async process => {
-    if (endpoint !== process.client) throw new Error("A browser Workspace can be attached only by a Client")
-    return processClient(process)
-  })
-  clients.set(endpoint, client)
+  const client = processClient(process)
+  clients.set(process.identity, client)
   return client
+}
+
+async function releaseWorkspaceClient(endpoint: SystemEndpointEntity, listener: (client: string) => unknown) {
+  const process = await endpoint.process()
+  if (endpoint !== process.client || !clients.has(process.identity)) return
+
+  clients.delete(process.identity)
+  listener(process.identity)
 }
 
 async function processClient(process: Awaited<ReturnType<Endpoint["process"]>>): Promise<WorkspaceClient> {
