@@ -88,11 +88,6 @@ button:disabled {
   min-width: 0;
   flex: 1 1 auto;
   overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.tabs-list::-webkit-scrollbar {
-  display: none;
 }
 
 .tab {
