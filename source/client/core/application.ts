@@ -1,4 +1,4 @@
-import { current, system } from "@phreshos/client"
+import { context, system } from "@phreshos/client"
 import { browserWorkspaceOption, type BrowserMetrics, type BrowserWorkspace } from "@server/core/browser"
 import Workspace, { type WorkspaceBoundary } from "./workspace"
 
@@ -74,7 +74,7 @@ export default class Application {
 
   private async attachWorkspace() {
     await this.ready()
-    const assigned = await current.option(browserWorkspaceOption)
+    const assigned = await context.option(browserWorkspaceOption)
     const snapshot = await this.channel.ask<BrowserWorkspace>("workspace.attach", {
       ...assigned && { workspace: assigned }
     })
@@ -130,7 +130,7 @@ export default class Application {
   private async ensureService() {
     if (await this.service.enabled()) return
 
-    const program = await current.program()
+    const program = await context.program()
 
     await program.process.findOrCreate({
       name: "browser-server",

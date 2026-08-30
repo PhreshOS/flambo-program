@@ -1,5 +1,5 @@
 import type { Endpoint, SystemEndpointEntity } from "@phreshos/core"
-import { current, system } from "@phreshos/server"
+import { context, system } from "@phreshos/server"
 import Application, { type WorkspaceClient, type WorkspaceClients } from "@server/core/application"
 import { browserWorkspaceOption, type BrowserInputRequest } from "@server/core/browser"
 import ChromiumEngine from "@server/core/chromium"
@@ -20,111 +20,111 @@ export default async function service() {
   const application = new Application(new ChromiumEngine(), { clients: clientLifecycle() })
 
   application.subscribeWorkspaces(workspace => {
-    void workspace.snapshot().then(snapshot => current.publish("workspace.change", snapshot)).catch(() => undefined)
+    void workspace.snapshot().then(snapshot => context.publish("workspace.change", snapshot)).catch(() => undefined)
   })
 
-  current.answer("workspace.create", async message => {
+  context.answer("workspace.create", async message => {
     const request = workspaceCreate.parse(message.payload)
     return (await application.createWorkspace(request.client)).snapshot()
   })
 
-  current.answer("workspace.list", async () => {
+  context.answer("workspace.list", async () => {
     return Promise.all(application.listWorkspaces().map(workspace => workspace.snapshot()))
   })
 
-  current.answer("workspace.attach", async message => {
+  context.answer("workspace.attach", async message => {
     const request = workspaceAttach.parse(message.payload)
     const workspace = await application.attachClient(await workspaceClient(message.from), request.workspace)
     return workspace.snapshot()
   })
 
-  current.answer("workspace.read", async message => {
+  context.answer("workspace.read", async message => {
     const request = workspaceRequest.parse(message.payload)
     return application.workspace(request.workspace).snapshot()
   })
 
-  current.answer("workspace.close", async message => {
+  context.answer("workspace.close", async message => {
     const request = workspaceRequest.parse(message.payload)
     await application.closeWorkspace(request.workspace)
     return null
   })
 
-  current.answer("session.create", async message => {
+  context.answer("session.create", async message => {
     const request = sessionCreate.parse(message.payload)
     return application.workspace(request.workspace).create(request.viewport)
   })
 
-  current.answer("session.close", async message => {
+  context.answer("session.close", async message => {
     const request = sessionRequest.parse(message.payload)
     await application.workspace(request.workspace).closeSession(request.session)
     return null
   })
 
-  current.answer("snapshot", async message => {
+  context.answer("snapshot", async message => {
     const request = sessionRequest.parse(message.payload)
     return application.workspace(request.workspace).capture(request.session)
   })
 
-  current.answer("navigate", async message => {
+  context.answer("navigate", async message => {
     const request = navigation.parse(message.payload)
     await application.workspace(request.workspace).navigate(request.session, request.url)
     return null
   })
 
-  current.answer("back", async message => {
+  context.answer("back", async message => {
     const request = sessionRequest.parse(message.payload)
     await application.workspace(request.workspace).back(request.session)
     return null
   })
 
-  current.answer("forward", async message => {
+  context.answer("forward", async message => {
     const request = sessionRequest.parse(message.payload)
     await application.workspace(request.workspace).forward(request.session)
     return null
   })
 
-  current.answer("reload", async message => {
+  context.answer("reload", async message => {
     const request = sessionRequest.parse(message.payload)
     await application.workspace(request.workspace).reload(request.session)
     return null
   })
 
-  current.answer("input", async message => {
+  context.answer("input", async message => {
     await performInput(application, input.parse(message.payload))
     return null
   })
 
-  current.answer("stream.start", async message => {
+  context.answer("stream.start", async message => {
     const request = stream.parse(message.payload)
     return application.workspace(request.workspace).startFrames(
       request.session,
       request.event,
-      frame => current.publish(request.event, frame)
+      frame => context.publish(request.event, frame)
     )
   })
 
-  current.answer("stream.stop", async message => {
+  context.answer("stream.stop", async message => {
     const request = stream.parse(message.payload)
     await application.stopFrames(request.workspace, request.session, request.event)
     return null
   })
 
-  current.subscribe("stream.keepalive", message => {
+  context.subscribe("stream.keepalive", message => {
     const request = stream.safeParse(message.payload)
     if (!request.success) return
     application.keepFrames(request.data.workspace, request.data.session, request.data.event)
   })
 
-  current.subscribe("stream.stop", message => {
+  context.subscribe("stream.stop", message => {
     const request = stream.safeParse(message.payload)
     if (!request.success) return
     void application.stopFrames(request.data.workspace, request.data.session, request.data.event).catch(() => undefined)
   })
 
-  current.answer("metrics", () => application.metrics())
+  context.answer("metrics", () => application.metrics())
 
   try {
-    await current.enableService("browser")
+    await context.enableService("browser")
   } catch (error) {
     await application.dispose()
     throw error
@@ -134,7 +134,7 @@ export default async function service() {
 function clientLifecycle(): WorkspaceClients {
   return {
     async create(workspace) {
-      const program = await current.program()
+      const program = await context.program()
       const process = await program.process.create({
         server: false,
         client: true,

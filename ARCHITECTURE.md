@@ -20,7 +20,7 @@ await program.process.findOrCreate({
 ```
 
 Every concurrent Client converges on this uniquely named Process. Flambo must
-never start the shared Server with `current.server.start()`: the Server must
+never start the shared Server with `context.server.start()`: the Server must
 not belong to a Client Process or end when that Client closes.
 
 The Server owns one shared Chromium instance. Every Workspace owns one
