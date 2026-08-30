@@ -1,7 +1,7 @@
 {
     "name": "flambo-program",
     "private": true,
-  "version": "0.1.19",
+  "version": "0.1.20",
     "description": "The official PhreshOS web browser Program.",
     "type": "module",
     "packageManager": "bun@1.3.14",
@@ -31,11 +31,11 @@
         "flambo"
     ],
     "dependencies": {
-        "@phreshos/client": "^0.1.23",
-        "@phreshos/core": "^0.1.22",
-    "@phreshos/react": "^0.1.11",
-    "@phreshos/react-ui": "^0.1.11",
-        "@phreshos/server": "^0.1.23",
+        "@phreshos/client": "^0.1.24",
+        "@phreshos/core": "^0.1.25",
+        "@phreshos/react": "^0.1.12",
+    "@phreshos/react-ui": "^0.1.12",
+        "@phreshos/server": "^0.1.25",
         "playwright": "^1.62.1",
         "react": "^19.2.8",
         "react-dom": "^19.2.8",
