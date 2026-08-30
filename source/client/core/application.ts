@@ -11,7 +11,7 @@ export default class Application {
     endpoint: "server",
     name: "browser"
   })
-  private readonly channel = this.service.channel.timeout(35_000)
+  private readonly timedService = this.service.timeout(35_000)
   private readonly listeners = new Set<() => void>()
   private readonly workspaces = new Map<string, Workspace>()
   private readonly cleanups: Array<() => void> = []
@@ -35,9 +35,9 @@ export default class Application {
 
     this.started = true
     this.cleanups.push(
-      this.service.subscribe("enable", () => this.setEnabled(true)),
-      this.service.subscribe("disable", () => this.connect()),
-      this.service.channel.subscribe("workspace.change", snapshot => this.synchronizeWorkspace(snapshot))
+      this.service.lifecycle.subscribe("enable", () => this.setEnabled(true)),
+      this.service.lifecycle.subscribe("disable", () => this.connect()),
+      this.service.subscribe("workspace.change", snapshot => this.synchronizeWorkspace(snapshot))
     )
     this.connect()
   }
@@ -56,7 +56,7 @@ export default class Application {
 
   public metrics() {
     this.start()
-    return this.ready().then(() => this.channel.ask<BrowserMetrics>("metrics"))
+    return this.ready().then(() => this.timedService.ask<BrowserMetrics>("metrics"))
   }
 
   public reconnect() {
@@ -75,7 +75,7 @@ export default class Application {
   private async attachWorkspace() {
     await this.ready()
     const assigned = await context.option(browserWorkspaceOption)
-    const snapshot = await this.channel.ask<BrowserWorkspace>("workspace.attach", {
+    const snapshot = await this.timedService.ask<BrowserWorkspace>("workspace.attach", {
       ...assigned && { workspace: assigned }
     })
 
@@ -99,9 +99,9 @@ export default class Application {
 
   private boundary(): WorkspaceBoundary {
     return {
-      ask: <Answer>(event: string, payload?: unknown) => this.channel.ask<Answer>(event, payload),
-      publish: (event, payload) => this.service.channel.publish(event, payload),
-      subscribe: (event, receive) => this.service.channel.subscribe(event, receive)
+      ask: <Answer>(event: string, payload?: unknown) => this.timedService.ask<Answer>(event, payload),
+      publish: (event, payload) => this.service.publish(event, payload),
+      subscribe: (event, receive) => this.service.subscribe(event, receive)
     }
   }
 
