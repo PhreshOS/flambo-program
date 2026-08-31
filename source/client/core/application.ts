@@ -8,8 +8,8 @@ export type ApplicationState = Readonly<{ enabled: boolean }> | undefined
 export default class Application {
   private readonly service = system.service({
     program: "flambo",
-    endpoint: "server",
-    name: "browser"
+    process: "browser-server",
+    endpoint: "server"
   })
   private readonly timedService = this.service.timeout(35_000)
   private readonly listeners = new Set<() => void>()
@@ -35,8 +35,8 @@ export default class Application {
 
     this.started = true
     this.cleanups.push(
-      this.service.lifecycle.subscribe("enable", () => this.setEnabled(true)),
-      this.service.lifecycle.subscribe("disable", () => this.connect()),
+      this.service.lifecycle.subscribe("start", () => this.setEnabled(true)),
+      this.service.lifecycle.subscribe("stop", () => this.connect()),
       this.service.subscribe("workspace.change", snapshot => this.synchronizeWorkspace(snapshot))
     )
     this.connect()
@@ -128,7 +128,7 @@ export default class Application {
   }
 
   private async ensureService() {
-    if (await this.service.enabled()) return
+    if (await this.service.exists()) return
 
     const program = await context.program()
 

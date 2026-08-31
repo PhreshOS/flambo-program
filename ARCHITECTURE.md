@@ -7,7 +7,7 @@ them.
 ## Runtime shape
 
 PhreshOS starts Flambo with only a Client endpoint by default. The Client
-prepares the exact `flambo/server/browser` Service. If it is not enabled, the
+prepares the exact `flambo/server/browser` Service. If it is unavailable, the
 Client finds or creates one separate server-only Process named
 `browser-server`:
 

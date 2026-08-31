@@ -9,7 +9,7 @@ individual workspaces.
 The authoritative browser belongs to one shared Process named
 `browser-server`. That Process runs only Flambo's Server Endpoint. Reuse the
 named Process when it exists; when absent, create it with the Server enabled and
-the Client disabled.
+activated as a Service and the Client disabled.
 
 Ordinary visible Flambo Processes are Client-only. The shared Server is not
 owned by any Client Process, so closing one Window cannot terminate the browser

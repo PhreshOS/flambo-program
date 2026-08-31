@@ -125,12 +125,6 @@ export default async function service() {
 
   context.answer("metrics", () => application.metrics())
 
-  try {
-    await context.enableService("browser")
-  } catch (error) {
-    await application.dispose()
-    throw error
-  }
 }
 
 function clientLifecycle(): WorkspaceClients {
