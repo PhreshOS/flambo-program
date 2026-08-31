@@ -1,5 +1,5 @@
-import type { Endpoint, SystemEndpointEntity } from "@phreshos/core"
-import { context, system } from "@phreshos/server"
+import type { Cleanup, Endpoint } from "@phreshos/core"
+import { context } from "@phreshos/server"
 import Application, { type WorkspaceClient, type WorkspaceClients } from "@server/core/application"
 import { browserWorkspaceOption, type BrowserInputRequest } from "@server/core/browser"
 import ChromiumEngine from "@server/core/chromium"
@@ -15,6 +15,8 @@ import {
 } from "./contract"
 
 const clients = new Map<string, Promise<WorkspaceClient>>()
+const clientSubscriptions = new Map<string, Cleanup>()
+const clientListeners = new Set<(client: string) => unknown>()
 
 export default async function service() {
   const application = new Application(new ChromiumEngine(), { clients: clientLifecycle() })
@@ -142,20 +144,12 @@ function clientLifecycle(): WorkspaceClients {
       })
       const client = processClient(process)
       clients.set(process.identity, client)
+      trackWorkspaceClient(process)
       return client
     },
     subscribe(listener) {
-      const stopEndpoint = system.process.subscribe("endpointStop", endpoint => {
-        void releaseWorkspaceClient(endpoint, listener).catch(() => undefined)
-      })
-      const stopProcess = system.process.subscribe("exit", ({ process }) => {
-        clients.delete(process.identity)
-        listener(process.identity)
-      })
-      return () => {
-        stopEndpoint()
-        stopProcess()
-      }
+      clientListeners.add(listener)
+      return () => { clientListeners.delete(listener) }
     }
   }
 }
@@ -171,15 +165,25 @@ async function workspaceClient(endpoint: Endpoint | null) {
 
   const client = processClient(process)
   clients.set(process.identity, client)
+  trackWorkspaceClient(process)
   return client
 }
 
-async function releaseWorkspaceClient(endpoint: SystemEndpointEntity, listener: (client: string) => unknown) {
-  const process = await endpoint.process()
-  if (endpoint !== process.client || !clients.has(process.identity)) return
+function trackWorkspaceClient(process: Awaited<ReturnType<Endpoint["process"]>>) {
+  if (clientSubscriptions.has(process.identity)) return
 
-  clients.delete(process.identity)
-  listener(process.identity)
+  const release = () => releaseWorkspaceClient(process.identity)
+  const stopClient = process.client.lifecycle.subscribe("stop", release)
+  const stopProcess = process.subscribe("exit", release)
+  clientSubscriptions.set(process.identity, () => { stopClient(); stopProcess() })
+}
+
+function releaseWorkspaceClient(identity: string) {
+  if (!clients.delete(identity)) return
+
+  clientSubscriptions.get(identity)?.()
+  clientSubscriptions.delete(identity)
+  for (const listener of clientListeners) listener(identity)
 }
 
 async function processClient(process: Awaited<ReturnType<Endpoint["process"]>>): Promise<WorkspaceClient> {
