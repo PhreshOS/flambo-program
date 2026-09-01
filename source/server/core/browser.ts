@@ -32,6 +32,11 @@ export type BrowserWorkspace = Readonly<{
   sessions: readonly BrowserSession[]
 }>
 
+/** Stable Flambo service events; stream frame names are allocated at runtime. */
+export type BrowserServiceEvents = {
+  "workspace.change": BrowserWorkspace
+}
+
 export type BrowserMetrics = Readonly<{
   capacity: Readonly<{
     total: number
