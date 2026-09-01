@@ -1,20 +1,21 @@
 # Flambo
 
-Flambo is the official PhreshOS web browser Program.
+The official PhreshOS web browser Program.
 
-Its Server owns one Chromium process, an isolated browser context for each
-Workspace, and the Sessions inside those Workspaces. Its Client is a desktop
-representation that sends interaction and renders the resulting frames.
-Refreshing or replacing a Client does not make that representation the owner
-of browser state.
+Flambo provides a persistent browser runtime whose state remains authoritative
+outside any one desktop representation.
 
-Flambo also exposes its browser capability as the documented `browser` Server
-service, allowing other Programs to create and operate sessions through the
-same authoritative backend.
+## Model
 
-## Install
+The Server owns one Chromium process, isolated Workspaces, and the Sessions
+inside them. The Client renders and interacts with that state. Reloading or
+replacing a Client does not replace the browser authority.
 
-Install the verified official release through the Phresh CLI:
+Flambo also exposes its browser capability through the `browser` Server
+Service. Other Programs can create and operate Sessions through the same
+backend used by the Flambo interface.
+
+## Installation
 
 ```sh
 phresh install flambo --run
@@ -28,12 +29,26 @@ bun run verify
 bun run dev
 ```
 
-`verify` type-checks and builds both Endpoints, exercises the session lifecycle,
-and validates the production artifact against the Program declaration.
+Build, attach the production definition, or package a release with:
 
-The accepted rebuild and ownership model are recorded in
-[ARCHITECTURE.md](ARCHITECTURE.md). Program-specific operating knowledge for
-agents is documented in [agent.md](agent.md).
+```sh
+bun run build
+bun run start
+bun run pack
+```
+
+`verify` checks both Endpoints, exercises the browser and Service contracts,
+and validates the production Program artifact.
+
+## Repository boundary
+
+This repository owns Flambo's browser domain, Chromium lifecycle, browser
+Service, and Client representation. Its architecture is documented in
+[ARCHITECTURE.md](ARCHITECTURE.md), and its Program-facing operating contract is
+documented in [agent.md](agent.md).
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the repository workflow and
+[SECURITY.md](SECURITY.md) for private vulnerability reporting.
 
 ## License
 
