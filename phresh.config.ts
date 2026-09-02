@@ -27,7 +27,6 @@ export default defineConfig({
     title: "Flambo",
     size: { width: 1100, height: 720 },
     development: {
-      url: "http://localhost:5270/",
       startCommand: "vite --config vite.client.ts"
     }
   }

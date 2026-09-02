@@ -12,7 +12,7 @@ export default defineConfig({
     dedupe: ["react"]
   },
   server: {
-    port: 5270,
+    port: Number(process.env.PHRESHOS_CLIENT_PORT ?? "5200"),
     strictPort: true
   },
   build: {
