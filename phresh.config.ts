@@ -4,7 +4,7 @@ export default defineConfig({
   identity: "flambo",
   name: "Flambo",
   description: "The official PhreshOS web browser.",
-  version: "0.1.30",
+  version: "0.1.31",
   icon: "icon.png",
   categories: ["Internet"],
   keywords: ["browser", "web", "workspace", "automation"],
