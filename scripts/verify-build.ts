@@ -8,7 +8,7 @@ assert.equal(config.name, "Flambo")
 assert.equal(config.version, manifest.version)
 assert.equal(config.server?.location, "dist/server")
 assert.equal(config.server?.entryFile, "main.js")
-assert.equal(config.server?.installCommand, "npm install --omit=dev && npx playwright install --with-deps chromium")
+assert.equal(config.server?.installCommand, "npm install --omit=dev --no-audit && npx playwright install --with-deps chromium")
 assert.equal(config.client?.location, "dist/client")
 assert.deepEqual(config.client?.size, { width: 1100, height: 720 })
 

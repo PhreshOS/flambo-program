@@ -16,7 +16,7 @@ export default defineConfig({
     start: false,
     service: true,
     entryFile: "main.js",
-    installCommand: "npm install --omit=dev && npx playwright install --with-deps chromium",
+    installCommand: "npm install --omit=dev --no-audit && npx playwright install --with-deps chromium",
     uninstallCommand: "npx playwright uninstall",
     development: {
       startCommand: "vite-node source/server/main.ts"
