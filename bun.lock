@@ -17,7 +17,7 @@
       },
       "devDependencies": {
         "@babel/core": "^7.29.7",
-        "@phreshos/cli": "^0.1.50",
+        "@phreshos/cli": "^0.1.51",
         "@rolldown/plugin-babel": "^0.2.3",
         "@types/node": "^26.2.0",
         "@types/react": "^19.2.18",
@@ -87,13 +87,13 @@
 
     "@oxc-project/types": ["@oxc-project/types@0.146.0", "", {}, "sha512-XC0QsnnhVe7sLIWmYmdPw7x5P0h4W8vUU3Nv1ySgWXtvCz8NizoAEpGXA0sOYoJQV2Rl13LgURAHQ5cI5ILCSA=="],
 
-    "@phreshos/cli": ["@phreshos/cli@0.1.50", "", { "dependencies": { "@clack/prompts": "^1.7.0", "@phreshos/core": "^0.1.39", "@phreshos/node": "^0.1.14", "adm-zip": "^0.6.0", "commander": "^15.0.0", "picocolors": "^1.1.1" }, "bin": { "phresh": "dist/cli.js" } }, "sha512-/3hd4+ryqP3yTc4JhuFNrs/YI5s0DyvBgkkKV9G0d2NXQk/JFcrWzb2cEUtrPRmohX22PbiJo5FL6GwVAO4H/Q=="],
+    "@phreshos/cli": ["@phreshos/cli@0.1.51", "", { "dependencies": { "@clack/prompts": "^1.7.0", "@phreshos/core": "^0.1.40", "@phreshos/node": "^0.1.15", "adm-zip": "^0.6.0", "commander": "^15.0.0", "picocolors": "^1.1.1" }, "bin": { "phresh": "dist/cli.js" } }, "sha512-HJ2jH8tfRvM93R2beeauNB8M7eVHFLIAwVv6PnBLPExXNXTq6ytJMKpJMNKOrZ05kv2e3RcfTs/5rGYjiSvLIw=="],
 
     "@phreshos/client": ["@phreshos/client@0.1.36", "", { "dependencies": { "@the-link/messagepack": "^0.1.0" }, "peerDependencies": { "@phreshos/core": "^0.1.40" } }, "sha512-/jsXZ6lHHFhbw8OnBG0s+MTp++rNsBGdt/qav9D6WjItpQ64zZUXEjPulkEyyMtfQLwDehquRh4F18QlOAV40Q=="],
 
     "@phreshos/core": ["@phreshos/core@0.1.40", "", {}, "sha512-qigxWHYeVkpPGhYIQ+3EooiABkOjGMrtOhr06S7J862q/fIM56AltX1iHgRBiySg8uoY+NXM5+rbAH0cCX6IpA=="],
 
-    "@phreshos/node": ["@phreshos/node@0.1.14", "", { "dependencies": { "@phreshos/core": "^0.1.39", "@the-link/ipc": "^0.2.1", "@the-link/messagepack": "^0.1.0", "adm-zip": "^0.6.0", "jiti": "^2.7.0" } }, "sha512-ZDc2QAhHsXo3EFr3mJDW5eA3lpozt76+CcK8TsGePEyJV05kSlx8HCrUIiMLfwcVWFWv+vT5q/QjjRlPj1ZK1w=="],
+    "@phreshos/node": ["@phreshos/node@0.1.15", "", { "dependencies": { "@phreshos/core": "^0.1.40", "@the-link/ipc": "^0.2.1", "@the-link/messagepack": "^0.1.0", "adm-zip": "^0.6.0", "jiti": "^2.7.0" } }, "sha512-qCBqGGapmaJ2YtLMKVbgM0vdbKYDZ59LyLoqxiN2VHLHE9d1AVnQtKlZ35FdQLw47wWnS4hnr4vxtyMRe08FUg=="],
 
     "@phreshos/react": ["@phreshos/react@0.1.19", "", { "peerDependencies": { "@phreshos/core": "^0.1.37", "react": "^19.2.0" } }, "sha512-3AOhGRpzBZEFB+Ol41ZZantHVGAfJOMfVtDB/WAEnMhLeN3OLJJsoghgnZ/ZoG+m31ltxUVGT7PqwnFjRrUOAw=="],
 
@@ -334,8 +334,6 @@
     "yallist": ["yallist@3.1.1", "", {}, "sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g=="],
 
     "zod": ["zod@4.4.3", "", {}, "sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ=="],
-
-    "@phreshos/node/@phreshos/core": ["@phreshos/core@0.1.39", "", {}, "sha512-55f4qtb8aoXausgD+Kebq+xBCOhO3g+wdQlKmVb6YObWwiYxLWu+fJ+GIJzyNlRE6etD3EvXvbtsjMkrVTn28A=="],
 
     "playwright/fsevents": ["fsevents@2.3.2", "", { "os": "darwin" }, "sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA=="],
   }
