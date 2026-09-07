@@ -1,7 +1,7 @@
 :root {
   --theme-bg: #edf8fc;
   --theme-fg: #183447;
-  --theme-accent: #4c9cff;
+  --theme-primary: #4c9cff;
   --theme-radius: 12px;
   --theme-spacing: 12px;
 
@@ -130,7 +130,7 @@ button:disabled {
   left: 8px;
   right: 8px;
   height: 2px;
-  background: var(--theme-accent);
+  background: var(--theme-primary);
   border-radius: 2px;
 }
 
@@ -159,7 +159,7 @@ button:disabled {
 }
 
 .tab.active .tab-icon-wrap {
-  color: var(--theme-accent);
+  color: var(--theme-primary);
 }
 
 .tab-favicon {
@@ -179,7 +179,7 @@ button:disabled {
   width: 12px;
   height: 12px;
   border: 2px solid rgba(76, 156, 255, 0.3);
-  border-top-color: var(--theme-accent);
+  border-top-color: var(--theme-primary);
   border-radius: 50%;
   animation: spin 700ms linear infinite;
 }
@@ -305,7 +305,7 @@ button:disabled {
 
 .omnibox.focused {
   background: #ffffff;
-  border-color: var(--theme-accent);
+  border-color: var(--theme-primary);
   box-shadow: 0 0 0 3px rgba(76, 156, 255, 0.22), inset 0 1px 1px rgba(0, 0, 0, 0.02);
 }
 
@@ -501,7 +501,7 @@ button:disabled {
 }
 
 .hero-search-wrapper:focus-within {
-  border-color: var(--theme-accent);
+  border-color: var(--theme-primary);
   box-shadow: 0 12px 30px rgba(76, 156, 255, 0.2), 0 0 0 3px rgba(76, 156, 255, 0.18);
   transform: translateY(-1px);
 }
@@ -526,7 +526,7 @@ button:disabled {
 .hero-search-button {
   padding: 8px 18px;
   border-radius: 11px;
-  background: var(--theme-accent);
+  background: var(--theme-primary);
   color: #ffffff;
   font-size: 13.5px;
   font-weight: 600;
@@ -648,7 +648,7 @@ button:disabled {
 
 .quick-link-card:hover .card-arrow {
   opacity: 1;
-  color: var(--theme-accent);
+  color: var(--theme-primary);
 }
 
 .new-tab-footer-tips {
@@ -822,7 +822,7 @@ button:disabled {
 .metric-icon {
   width: 12px;
   height: 12px;
-  color: var(--theme-accent);
+  color: var(--theme-primary);
 }
 
 /* ==========================================================================
@@ -868,7 +868,7 @@ button:disabled {
   width: 36px;
   height: 36px;
   border: 3px solid rgba(76, 156, 255, 0.2);
-  border-top-color: var(--theme-accent);
+  border-top-color: var(--theme-primary);
   border-radius: 50%;
   animation: spin 800ms linear infinite;
   flex-shrink: 0;
@@ -897,7 +897,7 @@ button:disabled {
   margin-top: 16px;
   padding: 8px 18px;
   border-radius: 10px;
-  background: var(--theme-accent);
+  background: var(--theme-primary);
   color: #ffffff;
   font-size: 13px;
   font-weight: 600;

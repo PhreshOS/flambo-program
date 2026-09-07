@@ -33,7 +33,7 @@ function ResolvedBrowser() {
   const appearance = useSystemAppearance()
   const background = useResolveTheme(appearance.background)
   const foreground = useResolveTheme(appearance.foreground)
-  const accent = useResolveTheme(appearance.accent)
+  const primary = useResolveTheme(appearance.primary)
   const radius = useResolveTheme(appearance.radius)
   const spacing = useResolveTheme(appearance.spacing)
   const state = useBrowser()
@@ -85,7 +85,7 @@ function ResolvedBrowser() {
       style={{
         "--theme-bg": background,
         "--theme-fg": foreground,
-        "--theme-accent": accent,
+        "--theme-primary": primary,
         "--theme-radius": `${radius}px`,
         "--theme-spacing": `${spacing}px`
       } as React.CSSProperties}
