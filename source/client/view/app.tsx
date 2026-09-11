@@ -31,9 +31,9 @@ function ThemedBrowser() {
 
 function ResolvedBrowser() {
   const appearance = useSystemAppearance()
-  const background = useResolveTheme(appearance.background)
-  const foreground = useResolveTheme(appearance.foreground)
-  const primary = useResolveTheme(appearance.primary)
+  const background = useResolveTheme(appearance.colors.background)
+  const foreground = useResolveTheme(appearance.colors.foreground)
+  const primary = useResolveTheme(appearance.colors.primary)
   const radius = useResolveTheme(appearance.radius)
   const spacing = useResolveTheme(appearance.spacing)
   const state = useBrowser()
