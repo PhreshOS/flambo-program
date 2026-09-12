@@ -1,6 +1,6 @@
 import { DesktopProvider, SystemProvider, useDesktopPreferences, useSystemAppearance } from "@phreshos/react"
 import { desktop, system } from "@phreshos/client"
-import { AppearanceProvider, useResolveTheme } from "@phreshos/react-ui"
+import { AppearanceProvider, useThemedValue } from "@phreshos/react-ui"
 import { useState } from "react"
 import type { BrowserViewport } from "@server/core/browser"
 import "./style.css"
@@ -31,11 +31,12 @@ function ThemedBrowser() {
 
 function ResolvedBrowser() {
   const appearance = useSystemAppearance()
-  const background = useResolveTheme(appearance.colors.background)
-  const foreground = useResolveTheme(appearance.colors.foreground)
-  const primary = useResolveTheme(appearance.colors.primary)
-  const radius = useResolveTheme(appearance.radius)
-  const spacing = useResolveTheme(appearance.spacing)
+  const colors = useThemedValue(appearance.colors)
+  const background = colors.background
+  const foreground = colors.foreground
+  const primary = colors.primary
+  const radius = appearance.radius
+  const spacing = appearance.spacing
   const state = useBrowser()
   const [viewport, setViewport] = useState<BrowserViewport | null>(null)
 
