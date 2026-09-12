@@ -183,7 +183,7 @@ function releaseWorkspaceClient(identity: string) {
 async function processClient(process: Awaited<ReturnType<Endpoint["process"]>>): Promise<WorkspaceClient> {
   return {
     identity: process.identity,
-    assignment: await process.option(browserWorkspaceOption),
+    assignment: await process.options(browserWorkspaceOption),
     exited: () => process.exited(),
     exit: () => process.exit()
   }

@@ -74,7 +74,7 @@ export default class Application {
 
   private async attachWorkspace() {
     await this.ready()
-    const assigned = await context.option(browserWorkspaceOption)
+    const assigned = await context.options(browserWorkspaceOption)
     const snapshot = await this.timedService.ask<BrowserWorkspace>("workspace.attach", {
       ...assigned && { workspace: assigned }
     })
