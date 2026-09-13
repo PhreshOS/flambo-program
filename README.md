@@ -42,6 +42,12 @@ bun run pack
 `verify` checks both Endpoints, exercises the browser and Service contracts,
 and validates the production Program artifact.
 
+`check` performs static checks, `build` creates distributable output, and `test`
+runs Vitest assertions from `tests/`. Run `build` before testing built artifacts.
+`verify` runs `check`, `build`, and `test` in order. Operational tooling belongs
+in `scripts/`; tests and their fixtures belong in `tests/`. Verification uses
+the committed dependency graph without local package substitutions.
+
 ## Related repositories
 
 - [PhreshOS System](https://github.com/PhreshOS/system) owns Endpoint execution,
