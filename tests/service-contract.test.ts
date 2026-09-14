@@ -12,7 +12,7 @@ import { test } from "vitest"
 test("service contract contract", async () => {
   assert.deepEqual(workspaceCreate.parse({}), { client: false })
   assert.deepEqual(workspaceCreate.parse({ client: true }), { client: true })
-  assert.equal(workspaceCreate.safeParse({ client: false, session: true }).success, false)
+  assert.deepEqual(workspaceCreate.parse({ client: false, extension: true }), { client: false })
   assert.deepEqual(workspaceAttach.parse({}), {})
 
   assert.deepEqual(sessionCreate.parse({
