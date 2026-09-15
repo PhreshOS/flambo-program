@@ -12,7 +12,7 @@ Client finds or creates one separate server-only Process named
 `browser-server`:
 
 ```ts
-await program.process.findOrCreate({
+await program.findOrCreateProcess({
   name: "browser-server",
   server: true,
   client: false

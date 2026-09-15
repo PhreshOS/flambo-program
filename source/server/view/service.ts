@@ -131,7 +131,7 @@ function clientLifecycle(): WorkspaceClients {
   return {
     async create(workspace) {
       const program = await context.program()
-      const process = await program.process.create({
+      const process = await program.createProcess({
         server: false,
         client: true,
         options: { [browserWorkspaceOption]: workspace }

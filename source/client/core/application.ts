@@ -132,7 +132,7 @@ export default class Application {
 
     const program = await context.program()
 
-    await program.process.findOrCreate({
+    await program.findOrCreateProcess({
       name: "browser-server",
       server: true,
       client: false
