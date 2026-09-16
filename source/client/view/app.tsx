@@ -1,6 +1,6 @@
 import { DesktopProvider, SystemProvider, useDesktopPreferences, useSystemAppearance } from "@phreshos/react"
 import { desktop, system } from "@phreshos/client"
-import { AppearanceProvider, useThemedValue } from "@phreshos/react-ui"
+import { UIProvider, useThemedValue } from "@phreshos/react-ui"
 import { useState } from "react"
 import type { BrowserViewport } from "@server/core/browser"
 import "./style.css"
@@ -24,9 +24,9 @@ function ThemedBrowser() {
   const appearance = useSystemAppearance()
   const preferences = useDesktopPreferences()
 
-  return <AppearanceProvider appearance={appearance} preferences={preferences}>
+  return <UIProvider appearance={appearance} preferences={preferences}>
     <ResolvedBrowser />
-  </AppearanceProvider>
+  </UIProvider>
 }
 
 function ResolvedBrowser() {
