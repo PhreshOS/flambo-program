@@ -15,11 +15,11 @@ export default defineConfig({
     location: "dist/server",
     start: false,
     service: true,
-    entryFile: "main.js",
+    worker: "main.js",
     installCommand: "npm install --omit=dev --no-audit && npx playwright install --with-deps chromium",
     uninstallCommand: "npx playwright uninstall",
     development: {
-      startCommand: "vite-node source/server/main.ts"
+      command: "vite-node source/server/main.ts"
     }
   },
   client: {
