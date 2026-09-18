@@ -19,6 +19,28 @@ The Server owns one Chromium process. Each workspace owns one isolated browser
 context, and every session in that workspace owns one page. Sessions in the
 same workspace share cookies and storage; different workspaces do not.
 
+## Execute interface
+
+Expose Flambo through the shared Execute request contract. Resolve its
+authoritative Server with:
+
+```json
+{
+  "$domain": "process",
+  "$operation": "findOrCreate",
+  "program": "flambo",
+  "launch": {
+    "name": "browser-server",
+    "server": { "service": true },
+    "client": false
+  }
+}
+```
+
+Send every request-response event described below through `endpoint.ask` using
+`program: "flambo"`, `process: "browser-server"`, `endpoint: "server"`, the
+documented event name, and its payload as `input`.
+
 ## Workspace lifecycle
 
 The Server Endpoint accepts these request-response events:
