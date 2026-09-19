@@ -4,7 +4,7 @@ export default defineConfig({
   identity: "flambo",
   name: "Flambo",
   description: "The official PhreshOS web browser.",
-  version: "0.1.44",
+  version: "0.1.45",
   icon: "icon.png",
   categories: ["Internet"],
   keywords: ["browser", "web", "workspace", "automation"],
@@ -18,16 +18,12 @@ export default defineConfig({
     worker: "main.js",
     installCommand: "npm install --omit=dev --no-audit && npx playwright install --with-deps chromium",
     uninstallCommand: "npx playwright uninstall",
-    development: {
-      command: "vite-node source/server/main.ts"
-    }
+    devCommand: "vite-node source/server/main.ts"
   },
   client: {
     location: "dist/client",
     title: "Flambo",
     size: { width: 1100, height: 720 },
-    development: {
-      startCommand: "vite --config vite.client.ts"
-    }
+    devCommand: "vite --config vite.client.ts"
   }
 })
