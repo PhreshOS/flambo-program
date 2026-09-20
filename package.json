@@ -1,7 +1,7 @@
 {
   "name": "flambo-program",
   "private": true,
-  "version": "0.1.46",
+  "version": "0.1.47",
   "description": "The official PhreshOS web browser Program.",
   "type": "module",
   "packageManager": "bun@1.3.14",

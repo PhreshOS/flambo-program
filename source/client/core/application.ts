@@ -14,6 +14,7 @@ export default class Application {
   private readonly timedService = this.service.timeout(35_000)
   private readonly listeners = new Set<() => void>()
   private readonly workspaces = new Map<string, Workspace>()
+  private readonly pendingWorkspaces = new Map<string, BrowserWorkspace>()
   private readonly cleanups: Array<() => void> = []
   private state: ApplicationState
   private connecting: Promise<void> | null = null
@@ -84,6 +85,7 @@ export default class Application {
     const existing = this.workspaces.get(snapshot.workspace)
     if (existing) {
       existing.synchronize(snapshot)
+      this.synchronizePendingWorkspace(existing)
       this.currentWorkspace = existing
       return existing
     }
@@ -93,6 +95,7 @@ export default class Application {
       if (this.currentWorkspace === workspace) this.currentWorkspace = null
     })
     this.workspaces.set(workspace.identity, workspace)
+    this.synchronizePendingWorkspace(workspace)
     this.currentWorkspace = workspace
     return workspace
   }
@@ -108,7 +111,25 @@ export default class Application {
   private synchronizeWorkspace(value: unknown) {
     const snapshot = value as Partial<BrowserWorkspace>
     if (typeof snapshot.workspace !== "string" || typeof snapshot.revision !== "number") return
-    this.workspaces.get(snapshot.workspace)?.synchronize(snapshot as BrowserWorkspace)
+
+    const workspace = this.workspaces.get(snapshot.workspace)
+    if (workspace) {
+      workspace.synchronize(snapshot as BrowserWorkspace)
+      return
+    }
+
+    const pending = this.pendingWorkspaces.get(snapshot.workspace)
+    if (!pending || snapshot.revision > pending.revision) {
+      this.pendingWorkspaces.set(snapshot.workspace, snapshot as BrowserWorkspace)
+    }
+  }
+
+  private synchronizePendingWorkspace(workspace: Workspace) {
+    const snapshot = this.pendingWorkspaces.get(workspace.identity)
+    if (!snapshot) return
+
+    this.pendingWorkspaces.delete(workspace.identity)
+    workspace.synchronize(snapshot)
   }
 
   private connect() {
@@ -158,6 +179,7 @@ export default class Application {
     this.currentWorkspace = null
     for (const workspace of this.workspaces.values()) workspace.invalidate()
     this.workspaces.clear()
+    this.pendingWorkspaces.clear()
   }
 
   private emit() {
