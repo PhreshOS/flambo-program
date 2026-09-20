@@ -178,7 +178,7 @@ Client View → Client Core ⇄ Server View → Server Core
 - Server Core owns browser entities, state, behavior, and resources.
 - Server View adapts the PhreshOS Service and lifecycle SDKs to Server Core.
 - Client Core owns communication and retained peer entities.
-- Client View renders Client Core and knows no Service key, transport event,
+- Client View renders Client Core and knows no Service address, transport event,
   Process discovery rule, or authoritative Server implementation.
 
 `main`, `view`, and `core` remain the only architectural peers beneath each

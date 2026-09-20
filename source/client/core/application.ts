@@ -6,7 +6,7 @@ export type ApplicationState = Readonly<{ enabled: boolean }> | undefined
 
 /** Client application coordinating local Workspace peers with Flambo Server. */
 export default class Application {
-  private readonly service = system.service<BrowserServiceEvents, unknown>({
+  private readonly service = system.service.prepare<BrowserServiceEvents, unknown>({
     program: "flambo",
     process: "browser-server",
     endpoint: "server"
@@ -35,8 +35,8 @@ export default class Application {
 
     this.started = true
     this.cleanups.push(
-      this.service.lifecycle.subscribe("start", () => this.setEnabled(true)),
-      this.service.lifecycle.subscribe("stop", () => this.connect()),
+      this.service.lifecycle.subscribe("available", () => this.setEnabled(true)),
+      this.service.lifecycle.subscribe("unavailable", () => this.connect()),
       this.service.subscribe("workspace.change", snapshot => this.synchronizeWorkspace(snapshot))
     )
     this.connect()
@@ -128,7 +128,7 @@ export default class Application {
   }
 
   private async ensureService() {
-    if (await this.service.exists()) return
+    if (await this.service.available()) return
 
     const program = await context.program()
 
