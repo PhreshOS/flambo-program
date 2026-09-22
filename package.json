@@ -1,0 +1,44 @@
+{
+    "name": "browser-program",
+    "private": true,
+    "version": "0.1.0",
+    "description": "A shared browser for people and agents on PhreshOS.",
+    "type": "module",
+    "scripts": {
+        "check": "tsc --noEmit",
+        "build": "vite-node scripts/build.ts",
+        "dev": "phresh dev",
+        "start": "phresh start",
+        "pack": "phresh pack",
+        "test": "vitest run --project default",
+        "test:platform": "vitest run --project platform",
+        "verify": "bun run check && bun run build && bun run test"
+    },
+    "keywords": [
+        "phreshos",
+        "program",
+        "browser"
+    ],
+    "dependencies": {
+        "@phreshos/client": "^0.1.48",
+        "@phreshos/core": "^0.1.56",
+        "@phreshos/react": "^0.1.29",
+        "@phreshos/react-ui": "^0.1.32",
+        "@phreshos/server": "^0.1.52",
+        "playwright": "^1.63.0",
+        "react": "^19.2.8",
+        "react-dom": "^19.2.8",
+        "zod": "^4.6.5"
+    },
+    "devDependencies": {
+        "@phreshos/cli": "^0.1.68",
+        "@types/node": "^26.4.0",
+        "@types/react": "^19.2.18",
+        "@types/react-dom": "^19.2.5",
+        "@vitejs/plugin-react": "^6.1.1",
+        "typescript": "^7.0.2",
+        "vite": "^8.2.2",
+        "vite-node": "^6.0.0",
+        "vitest": "^4.1.10"
+    }
+}
