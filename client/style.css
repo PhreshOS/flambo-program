@@ -1,3 +1,5 @@
+@import "@fontsource/roboto";
+
 :root {
   color-scheme: light dark;
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
@@ -36,7 +38,16 @@ input {
   overflow: hidden;
 }
 
-.tab-strip,
+.window-titlebar {
+  z-index: 3;
+  font-family: "Roboto", sans-serif;
+}
+
+.window-tabs {
+  gap: 4px;
+  overflow: hidden;
+}
+
 .navigation {
   z-index: 2;
   display: flex;
@@ -46,14 +57,11 @@ input {
   padding: 6px;
 }
 
-.tab-strip {
-  padding-bottom: 4px;
-}
-
 .tabs {
   display: flex;
   align-items: center;
   gap: 4px;
+  flex: 0 1 auto;
   min-width: 0;
   overflow: auto hidden;
   scrollbar-width: none;

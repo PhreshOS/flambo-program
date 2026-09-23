@@ -4,7 +4,7 @@ export default defineConfig({
     identity: "flambo",
     name: "Flambo",
     description: "A shared browser for people and agents.",
-    version: "0.1.49",
+    version: "0.1.51",
     icon: "icon.png",
     categories: ["Internet"],
     keywords: ["browser", "web", "tabs", "workspace"],
@@ -23,6 +23,7 @@ export default defineConfig({
     client: {
         location: "dist/client",
         title: "Flambo",
+        header: false,
         size: { width: 1100, height: 720 },
         devCommand: "vite --config vite.client.ts"
     }

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent, type PointerEvent, type WheelEvent } from "react"
-import { desktop, system } from "@phreshos/client"
-import { DesktopProvider, SystemProvider, useDesktopPreferences, useSystemAppearance } from "@phreshos/react"
-import { Button, Input, ProgressBar, Surface, Toolbar, UIProvider } from "@phreshos/react-ui"
+import { context, desktop, system } from "@phreshos/client"
+import { DesktopProvider, SystemProvider, useDesktopPreferences, useSystemAppearance, useWindowState } from "@phreshos/react"
+import { Button, Input, ProgressBar, Surface, Toolbar, UIProvider, Window } from "@phreshos/react-ui"
+import flamboIcon from "../icon.png"
 import Application from "./core/application"
 import type { TabObservationFrame, TabSnapshot, Viewport } from "../shared/flambo"
 
@@ -27,23 +28,43 @@ function FlamboWindow({ application }: Readonly<{ application: Application }>) {
   const rememberViewport = useCallback((value: Viewport) => { viewport.current = value }, [])
   const createTab = () => application.createTab(viewport.current).catch(error => application.fail(error))
   const createWorkspace = () => application.createWorkspace().catch(error => application.fail(error))
+  const window = useWindowState(context.window)
+  const actOnWindow = (operation: () => Promise<unknown>) => void operation().catch(error => application.fail(error))
+  const toggleMaximize = async () => context.window.maximize(!await context.window.maximized())
+  const close = async () => (await context.process()).exit()
 
   return <main className="flambo-shell">
-    <Surface className="tab-strip" radius="none" shadow={false}>
-      <Button aria-label="New workspace" size="xsmall" onPress={createWorkspace}><Icon name="workspace" /></Button>
-      <div className="tabs" aria-label="Flambo tabs">
-        {workspace?.tabs.map(tab => <FlamboTab
-          key={tab.id}
-          tab={tab}
-          active={tab.id === workspace.activeTab}
-          onSelect={() => void application.selectTab(tab.id).catch(error => application.fail(error))}
-          onClose={() => void application.closeTab(tab.id).then(() => {
-            if (workspace.tabs.length === 1) return createTab()
-          }).catch(error => application.fail(error))}
-        />)}
-      </div>
-      <Button aria-label="New tab" size="xsmall" onPress={createTab}><Icon name="plus" /></Button>
-    </Surface>
+    <Window.Header
+      className="window-titlebar"
+      active={window?.front ?? true}
+      beginMoveGesture={start => context.presentation.beginMoveGesture(start)}
+      onMoveError={error => application.fail(error)}
+      onDoubleClick={() => actOnWindow(toggleMaximize)}
+    >
+      <Window.Header.Identity icon={flamboIcon} title="Flambo" />
+      {/* Center stops drag propagation, so it must cover controls only; unused
+          header space remains owned by the draggable Header root. */}
+      <Window.Header.Center className="window-tabs" style={{ flex: "0 1 auto" }}>
+        <Button aria-label="New workspace" size="xsmall" onPress={createWorkspace}><Icon name="workspace" /></Button>
+        <div className="tabs" aria-label="Flambo tabs">
+          {workspace?.tabs.map(tab => <FlamboTab
+            key={tab.id}
+            tab={tab}
+            active={tab.id === workspace.activeTab}
+            onSelect={() => void application.selectTab(tab.id).catch(error => application.fail(error))}
+            onClose={() => void application.closeTab(tab.id).then(() => {
+              if (workspace.tabs.length === 1) return createTab()
+            }).catch(error => application.fail(error))}
+          />)}
+        </div>
+        <Button aria-label="New tab" size="xsmall" onPress={createTab}><Icon name="plus" /></Button>
+      </Window.Header.Center>
+      <Window.Header.Actions>
+        <Window.Header.Minimize preventFocusOnPress={false} onPress={() => actOnWindow(() => context.window.minimize())} />
+        <Window.Header.Maximize maximized={window?.maximized ?? false} onPress={() => actOnWindow(toggleMaximize)} />
+        <Window.Header.Close preventFocusOnPress={false} onPress={() => actOnWindow(close)} />
+      </Window.Header.Actions>
+    </Window.Header>
 
     <Navigation application={application} tab={active} />
 
@@ -71,7 +92,7 @@ function FlamboTab({ active, onClose, onSelect, tab }: Readonly<{
     <Button
       aria-current={active ? "page" : undefined}
       color={active ? "primary:soft" : "default:subtle"}
-      size="small"
+      size="xsmall"
       onPress={onSelect}
       style={{ flex: "1 1 auto", justifyContent: "start" }}
     >
