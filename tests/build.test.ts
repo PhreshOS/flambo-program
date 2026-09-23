@@ -5,8 +5,8 @@ import manifest from "../package.json" with { type: "json" }
 import { test } from "vitest"
 
 test("build contract", async () => {
-  assert.equal(config.identity, "browser")
-  assert.equal(config.name, "Browser")
+  assert.equal(config.identity, "flambo")
+  assert.equal(config.name, "Flambo")
   assert.equal(config.version, manifest.version)
   assert.equal(config.server?.location, "dist/server")
   assert.equal(config.server?.worker, "main.js")

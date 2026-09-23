@@ -5,8 +5,8 @@ import type { ApplicationEvent } from "../core/application"
 import type { WorkspaceClient, WorkspaceClients } from "../core/application"
 import Application from "../core/application"
 import type { BrowserFrame } from "../core/browser-engine"
-import type { TabFrame, TabObservationFrame } from "../../shared/browser"
-import { requests, type BrowserRequests, type BrowserServiceEvents } from "../../shared/service"
+import type { TabFrame, TabObservationFrame } from "../../shared/flambo"
+import { requests, type FlamboRequests, type FlamboServiceEvents } from "../../shared/service"
 
 type Message = Readonly<{ payload: unknown, from?: Endpoint | null }>
 
@@ -28,7 +28,7 @@ export function workspaceClients(): WorkspaceClients {
   }
 }
 
-/** Exposes the browser domain without giving transport concerns to its entities. */
+/** Exposes Flambo's domain without giving transport concerns to its entities. */
 export function serve(application: Application, boundary: ServiceBoundary = context) {
   const observations = new Map<string, Observation>()
   application.subscribe(event => {
@@ -103,7 +103,7 @@ export function serve(application: Application, boundary: ServiceBoundary = cont
     const request = requests.acknowledge.parse(payload)
     const observation = requireObservation(observations, request.observation, message)
     if (!observation.inFlight || request.sequence !== observation.sequence) {
-      throw new Error("The browser Tab frame acknowledgement is not current")
+      throw new Error("The Flambo Tab frame acknowledgement is not current")
     }
 
     observation.inFlight = false
@@ -142,9 +142,9 @@ export function serve(application: Application, boundary: ServiceBoundary = cont
 }
 
 async function messageClient(message: Message) {
-  if (!message.from) throw new Error("A browser Workspace can be attached only by a Client")
+  if (!message.from) throw new Error("A Flambo Workspace can be attached only by a Client")
   const process = await message.from.process()
-  if (message.from !== process.client) throw new Error("A browser Workspace can be attached only by a Client")
+  if (message.from !== process.client) throw new Error("A Flambo Workspace can be attached only by a Client")
   return processClient(process)
 }
 
@@ -158,12 +158,12 @@ async function processClient(process: Awaited<ReturnType<Endpoint["process"]>>):
   }
 }
 
-function answer<Event extends keyof BrowserRequests>(
+function answer<Event extends keyof FlamboRequests>(
   boundary: ServiceBoundary,
   event: Event,
-  handler: (payload: BrowserRequests[Event]["input"], message: Message) => Promise<BrowserRequests[Event]["output"]>
+  handler: (payload: FlamboRequests[Event]["input"], message: Message) => Promise<FlamboRequests[Event]["output"]>
 ) {
-  boundary.answer(event, message => handler(message.payload as BrowserRequests[Event]["input"], message))
+  boundary.answer(event, message => handler(message.payload as FlamboRequests[Event]["input"], message))
 }
 
 function operation(application: Application, payload: unknown, action: "back" | "forward" | "reload") {
@@ -185,14 +185,14 @@ type Observation = {
 }
 
 function requireOwner(message: Message) {
-  if (!message.from) throw new Error("Continuous browser Tab observation requires a Client Endpoint")
+  if (!message.from) throw new Error("Continuous Flambo Tab observation requires a Client Endpoint")
   return message.from
 }
 
 function requireObservation(observations: Map<string, Observation>, id: string, message: Message) {
   const observation = observations.get(id)
   if (!observation || observation.owner !== requireOwner(message)) {
-    throw new Error("The browser Tab observation does not exist")
+    throw new Error("The Flambo Tab observation does not exist")
   }
   return observation
 }
@@ -210,7 +210,7 @@ function flushFrame(boundary: ServiceBoundary, observation: Observation) {
   observation.pending = null
   observation.inFlight = true
   observation.sequence += 1
-  boundary.publish("tab.frame" satisfies keyof BrowserServiceEvents, observed(observation, frame))
+  boundary.publish("tab.frame" satisfies keyof FlamboServiceEvents, observed(observation, frame))
 }
 
 function observed(observation: Observation, frame: TabFrame | BrowserFrame): TabObservationFrame {
@@ -245,8 +245,8 @@ function closeMissingObservations(observations: Map<string, Observation>, event:
 
 function publish(boundary: ServiceBoundary, event: ApplicationEvent) {
   if (event.type === "workspace.changed") {
-    boundary.publish("workspace.changed" satisfies keyof BrowserServiceEvents, event.snapshot)
+    boundary.publish("workspace.changed" satisfies keyof FlamboServiceEvents, event.snapshot)
   } else {
-    boundary.publish("workspace.closed" satisfies keyof BrowserServiceEvents, { workspace: event.workspace })
+    boundary.publish("workspace.closed" satisfies keyof FlamboServiceEvents, { workspace: event.workspace })
   }
 }

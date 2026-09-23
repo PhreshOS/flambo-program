@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import type { BrowserContext, BrowserEngine, BrowserPage } from "../server/core/browser-engine"
 import Application, { type WorkspaceClient, type WorkspaceClients } from "../server/core/application"
-import type { KeyModifiers, PageState, PointerButton, Viewport } from "../shared/browser"
+import type { KeyModifiers, PageState, PointerButton, Viewport } from "../shared/flambo"
 import { test } from "vitest"
 
 class FakePage implements BrowserPage {
@@ -111,12 +111,12 @@ class FakeClients implements WorkspaceClients {
   }
 }
 
-function browser(engine = new FakeEngine(), clients = new FakeClients()) {
+function flambo(engine = new FakeEngine(), clients = new FakeClients()) {
   return { application: new Application(engine, clients), engine, clients }
 }
 
 test("Workspace owns ordered revisioned Tab state", async () => {
-  const { application, engine } = browser()
+  const { application, engine } = flambo()
   const workspace = await application.createWorkspace()
   const changes: number[] = []
   application.subscribe(event => {
@@ -149,7 +149,7 @@ test("Workspace owns ordered revisioned Tab state", async () => {
 })
 
 test("Application isolates and closes Workspaces", async () => {
-  const { application, clients, engine } = browser()
+  const { application, clients, engine } = flambo()
   const first = await application.createWorkspace()
   const second = await application.createWorkspace()
 
@@ -167,7 +167,7 @@ test("Application isolates and closes Workspaces", async () => {
 })
 
 test("Tab operations update one authoritative snapshot", async () => {
-  const { application, engine } = browser()
+  const { application, engine } = flambo()
   const workspace = await application.createWorkspace()
   const created = await workspace.createTab({ width: 800, height: 600 })
 
@@ -207,7 +207,7 @@ test("Tab operations update one authoritative snapshot", async () => {
 })
 
 test("Page-originated navigation enters the authoritative Workspace revision stream", async () => {
-  const { application, engine } = browser()
+  const { application, engine } = flambo()
   const workspace = await application.createWorkspace()
   await workspace.createTab({ width: 800, height: 600 })
   const changed = new Promise<void>(resolve => {
@@ -227,7 +227,7 @@ test("Page-originated navigation enters the authoritative Workspace revision str
 })
 
 test("Client and Workspace share one Process lifetime without treating document reload as termination", async () => {
-  const { application, clients } = browser()
+  const { application, clients } = flambo()
   const workspace = await application.createWorkspace()
   const client = clients.values[0]!
 

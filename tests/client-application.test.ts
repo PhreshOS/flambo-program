@@ -1,43 +1,43 @@
 import assert from "node:assert/strict"
-import Application, { type BrowserAPI } from "../client/core/application"
-import type { BrowserRequests, BrowserServiceEvents } from "../shared/service"
-import type { TabObservationFrame, WorkspaceSnapshot } from "../shared/browser"
+import Application, { type FlamboAPI } from "../client/core/application"
+import type { FlamboRequests, FlamboServiceEvents } from "../shared/service"
+import type { TabObservationFrame, WorkspaceSnapshot } from "../shared/flambo"
 import { test } from "vitest"
 
-class API implements BrowserAPI {
-  public readonly requests: Array<[keyof BrowserRequests, unknown]> = []
+class API implements FlamboAPI {
+  public readonly requests: Array<[keyof FlamboRequests, unknown]> = []
   public readonly pointerResolvers: Array<() => void> = []
-  private readonly listeners = new Map<keyof BrowserServiceEvents, Set<(value: never) => unknown>>()
+  private readonly listeners = new Map<keyof FlamboServiceEvents, Set<(value: never) => unknown>>()
   private revision = 0
   private pointerObserved: (() => void) | null = null
   private snapshot: WorkspaceSnapshot = Object.freeze({ id: "workspace", revision: 0, activeTab: null, tabs: [] })
   private readonly workspaces = new Map<string, WorkspaceSnapshot>([[this.snapshot.id, this.snapshot]])
 
-  public async request<Event extends keyof BrowserRequests>(event: Event, input: BrowserRequests[Event]["input"]): Promise<BrowserRequests[Event]["output"]> {
+  public async request<Event extends keyof FlamboRequests>(event: Event, input: FlamboRequests[Event]["input"]): Promise<FlamboRequests[Event]["output"]> {
     this.requests.push([event, input])
-    if (event === "workspace.attach") return this.snapshot as BrowserRequests[Event]["output"]
-    if (event === "workspace.list") return [...this.workspaces.values()] as BrowserRequests[Event]["output"]
+    if (event === "workspace.attach") return this.snapshot as FlamboRequests[Event]["output"]
+    if (event === "workspace.list") return [...this.workspaces.values()] as FlamboRequests[Event]["output"]
     if (event === "workspace.create") {
       const workspace = Object.freeze({ id: `workspace-${this.workspaces.size + 1}`, revision: 0, activeTab: null, tabs: [] })
       this.workspaces.set(workspace.id, workspace)
       this.emit("workspace.changed", workspace)
-      return workspace as BrowserRequests[Event]["output"]
+      return workspace as FlamboRequests[Event]["output"]
     }
     if (event === "workspace.read") {
       const snapshot = this.workspaces.get((input as { workspace: string }).workspace)
       if (!snapshot) throw new Error("Missing test Workspace")
-      return snapshot as BrowserRequests[Event]["output"]
+      return snapshot as FlamboRequests[Event]["output"]
     }
     if (event === "tab.create") {
       const tab = Object.freeze({ id: "tab", url: "about:blank", title: "", canGoBack: false, canGoForward: false, viewport: { width: 800, height: 600 } })
       this.snapshot = Object.freeze({ id: "workspace", revision: ++this.revision, activeTab: tab.id, tabs: [tab] })
       this.workspaces.set(this.snapshot.id, this.snapshot)
       this.emit("workspace.changed", this.snapshot)
-      return tab as BrowserRequests[Event]["output"]
+      return tab as FlamboRequests[Event]["output"]
     }
-    if (event === "tab.observe") return frame(1) as BrowserRequests[Event]["output"]
-    if (event === "tab.movePointer") return await new Promise<BrowserRequests[Event]["output"]>(resolve => {
-      this.pointerResolvers.push(() => resolve(this.snapshot as BrowserRequests[Event]["output"]))
+    if (event === "tab.observe") return frame(1) as FlamboRequests[Event]["output"]
+    if (event === "tab.movePointer") return await new Promise<FlamboRequests[Event]["output"]>(resolve => {
+      this.pointerResolvers.push(() => resolve(this.snapshot as FlamboRequests[Event]["output"]))
       this.pointerObserved?.()
       this.pointerObserved = null
     })
@@ -46,19 +46,19 @@ class API implements BrowserAPI {
       this.snapshot = Object.freeze({ ...this.snapshot, revision: ++this.revision, tabs: [tab] })
       this.workspaces.set(this.snapshot.id, this.snapshot)
       this.emit("workspace.changed", this.snapshot)
-      return tab as BrowserRequests[Event]["output"]
+      return tab as FlamboRequests[Event]["output"]
     }
-    return null as BrowserRequests[Event]["output"]
+    return null as FlamboRequests[Event]["output"]
   }
 
-  public subscribe<Event extends keyof BrowserServiceEvents>(event: Event, receive: (value: BrowserServiceEvents[Event]) => unknown) {
+  public subscribe<Event extends keyof FlamboServiceEvents>(event: Event, receive: (value: FlamboServiceEvents[Event]) => unknown) {
     const listeners = this.listeners.get(event) ?? new Set()
     listeners.add(receive as (value: never) => unknown)
     this.listeners.set(event, listeners)
     return () => { listeners.delete(receive as (value: never) => unknown) }
   }
 
-  public emit<Event extends keyof BrowserServiceEvents>(event: Event, value: BrowserServiceEvents[Event]) {
+  public emit<Event extends keyof FlamboServiceEvents>(event: Event, value: FlamboServiceEvents[Event]) {
     for (const receive of this.listeners.get(event) ?? []) receive(value as never)
   }
 

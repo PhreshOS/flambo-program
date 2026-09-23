@@ -1,4 +1,4 @@
-import type { KeyModifiers, PageState, PointerButton, Viewport } from "../../shared/browser"
+import type { KeyModifiers, PageState, PointerButton, Viewport } from "../../shared/flambo"
 
 export type BrowserFrame = Readonly<{
   viewport: Viewport

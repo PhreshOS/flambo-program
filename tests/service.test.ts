@@ -3,7 +3,7 @@ import type { Endpoint } from "@phreshos/core"
 import type { BrowserContext, BrowserEngine, BrowserPage } from "../server/core/browser-engine"
 import Application, { type WorkspaceClient, type WorkspaceClients } from "../server/core/application"
 import { serve, type ServiceBoundary } from "../server/view/service"
-import type { KeyModifiers, PageState, PointerButton, Viewport } from "../shared/browser"
+import type { KeyModifiers, PageState, PointerButton, Viewport } from "../shared/flambo"
 import { test } from "vitest"
 
 class Page implements BrowserPage {
@@ -119,7 +119,7 @@ function owner() {
   }
 }
 
-function workspaceOwner(identity = "browser-client") {
+function workspaceOwner(identity = "flambo-client") {
   const exits = new Set<() => unknown>()
   let ended = false
   let endpoint: Endpoint
@@ -146,9 +146,9 @@ function workspaceOwner(identity = "browser-client") {
 }
 
 test("Service requests and publications preserve authoritative revisions", async () => {
-  const browser = application()
+  const flambo = application()
   const boundary = new Boundary()
-  serve(browser, boundary)
+  serve(flambo, boundary)
 
   const workspace = await boundary.ask("workspace.create") as { id: string }
   const tab = await boundary.ask("tab.create", {
@@ -194,15 +194,15 @@ test("Service rejects invalid input at its boundary", async () => {
 })
 
 test("Service reattaches one Client Process and closes both sides as one lifetime", async () => {
-  const browser = application()
+  const flambo = application()
   const boundary = new Boundary()
   const owner = workspaceOwner()
-  serve(browser, boundary)
+  serve(flambo, boundary)
 
   const first = await boundary.ask("workspace.attach", undefined, owner.endpoint) as { id: string }
   const reloaded = await boundary.ask("workspace.attach", undefined, owner.endpoint) as { id: string }
   assert.equal(reloaded.id, first.id)
-  assert.equal((await browser.listWorkspaces()).length, 1)
+  assert.equal((await flambo.listWorkspaces()).length, 1)
 
   await boundary.ask("workspace.close", { workspace: first.id })
   assert.equal(await owner.process.exited(), true)

@@ -7,15 +7,15 @@ import type {
   TabSnapshot,
   Viewport,
   WorkspaceSnapshot
-} from "./browser"
+} from "./flambo"
 
-export type BrowserServiceEvents = {
+export type FlamboServiceEvents = {
   "workspace.changed": WorkspaceSnapshot
   "workspace.closed": Readonly<{ workspace: string }>
   "tab.frame": TabObservationFrame
 }
 
-export type BrowserRequests = {
+export type FlamboRequests = {
   "workspace.attach": { input: undefined, output: WorkspaceSnapshot }
   "workspace.list": { input: undefined, output: readonly WorkspaceSnapshot[] }
   "workspace.create": { input: undefined, output: WorkspaceSnapshot }

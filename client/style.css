@@ -25,7 +25,7 @@ input {
   font: inherit;
 }
 
-.browser-shell {
+.flambo-shell {
   position: relative;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
@@ -63,7 +63,7 @@ input {
   display: none;
 }
 
-.browser-tab {
+.flambo-tab {
   display: flex;
   align-items: center;
   gap: 2px;
@@ -137,7 +137,7 @@ input {
   font-size: 0.8125em;
 }
 
-.browser-error {
+.flambo-error {
   position: absolute !important;
   z-index: 4;
   inset-inline: 12px;

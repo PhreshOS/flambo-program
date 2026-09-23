@@ -1,19 +1,19 @@
-# Browser
+# Flambo
 
-Browser provides shared, server-owned web Workspaces. A Workspace owns an
+Flambo provides shared, server-owned web Workspaces. A Workspace owns an
 isolated browser context and an ordered collection of Tabs. People and agents
 that address the same Workspace operate on the same authoritative Tabs.
 
 ## Service
 
-The browser authority is the named Server Service at:
+Flambo's authority is the named Server Service at:
 
 ```json
-{ "program": "browser", "process": "browser", "endpoint": "server" }
+{ "program": "flambo", "process": "flambo", "endpoint": "server" }
 ```
 
 Find or create that Process with the Server enabled as a Service and the Client
-disabled. Browser Clients use the same Service rather than starting a separate
+disabled. Flambo Clients use the same Service rather than starting a separate
 authority.
 
 Every Workspace owns one distinct Client Process. `workspace.create` creates
@@ -66,6 +66,6 @@ Workspace and Tab identities returned by the Service rather than abbreviations.
 Pointer coordinates refer to the Tab viewport. `button` is `left`, `middle`, or
 `right`. Modifiers are any of `Alt`, `Control`, `Meta`, and `Shift`.
 
-The Browser Client uses acknowledged live frames internally. Agents that do not
+The Flambo Client uses acknowledged live frames internally. Agents that do not
 present a Client interface should use `tab.capture` when they need to inspect a
 Tab visually.

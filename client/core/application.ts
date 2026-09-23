@@ -1,18 +1,18 @@
-import type { TabObservationFrame, TabSnapshot, Viewport, WorkspaceSnapshot } from "../../shared/browser"
-import type { BrowserRequests, BrowserServiceEvents } from "../../shared/service"
+import type { TabObservationFrame, TabSnapshot, Viewport, WorkspaceSnapshot } from "../../shared/flambo"
+import type { FlamboRequests, FlamboServiceEvents } from "../../shared/service"
 
-export interface BrowserAPI {
-  request<Event extends keyof BrowserRequests>(
+export interface FlamboAPI {
+  request<Event extends keyof FlamboRequests>(
     event: Event,
-    input: BrowserRequests[Event]["input"]
-  ): Promise<BrowserRequests[Event]["output"]>
-  subscribe<Event extends keyof BrowserServiceEvents>(
+    input: FlamboRequests[Event]["input"]
+  ): Promise<FlamboRequests[Event]["output"]>
+  subscribe<Event extends keyof FlamboServiceEvents>(
     event: Event,
-    receive: (value: BrowserServiceEvents[Event]) => unknown
+    receive: (value: FlamboServiceEvents[Event]) => unknown
   ): () => void
 }
 
-export type BrowserState = Readonly<{
+export type FlamboState = Readonly<{
   status: "connecting" | "ready" | "failed"
   workspace: WorkspaceSnapshot | null
   frame: TabObservationFrame | null
@@ -21,7 +21,7 @@ export type BrowserState = Readonly<{
 
 /** Maintains one Client's live projection of an authoritative Workspace. */
 export default class Application {
-  private state: BrowserState = { status: "connecting", workspace: null, frame: null, error: null }
+  private state: FlamboState = { status: "connecting", workspace: null, frame: null, error: null }
   private readonly listeners = new Set<() => void>()
   private readonly release: Array<() => void>
   private workspace: string | null = null
@@ -34,7 +34,7 @@ export default class Application {
   private readonly wheelQueues = new Map<string, { deltaX: number, deltaY: number, running: Promise<TabSnapshot> | null }>()
   private readonly pointerQueues = new Map<string, { pending: Readonly<{ x: number, y: number }> | null, running: Promise<TabSnapshot> | null }>()
 
-  public constructor(private readonly api: BrowserAPI) {
+  public constructor(private readonly api: FlamboAPI) {
     this.release = [
       api.subscribe("workspace.changed", snapshot => {
         this.buffered?.push(snapshot)
@@ -199,7 +199,7 @@ export default class Application {
 
   private async flushWheel(tab: string, queue: { deltaX: number, deltaY: number, running: Promise<TabSnapshot> | null }) {
     let result = this.requireWorkspace().tabs.find(candidate => candidate.id === tab)
-    if (!result) throw new Error("The browser Tab does not exist in this Workspace")
+    if (!result) throw new Error("The Flambo Tab does not exist in this Workspace")
     try {
       while (queue.deltaX !== 0 || queue.deltaY !== 0) {
         const deltaX = queue.deltaX
@@ -221,7 +221,7 @@ export default class Application {
 
   private async flushPointer(tab: string, queue: { pending: Readonly<{ x: number, y: number }> | null, running: Promise<TabSnapshot> | null }) {
     let result = this.requireWorkspace().tabs.find(candidate => candidate.id === tab)
-    if (!result) throw new Error("The browser Tab does not exist in this Workspace")
+    if (!result) throw new Error("The Flambo Tab does not exist in this Workspace")
     try {
       while (queue.pending) {
         const point = queue.pending
@@ -305,11 +305,11 @@ export default class Application {
   }
 
   private requireWorkspace() {
-    if (!this.state.workspace) throw new Error("The browser Workspace is not ready")
+    if (!this.state.workspace) throw new Error("The Flambo Workspace is not ready")
     return this.state.workspace
   }
 
-  private set(patch: Partial<BrowserState>) {
+  private set(patch: Partial<FlamboState>) {
     if (this.disposed) return
     this.state = Object.freeze({ ...this.state, ...patch })
     for (const listener of this.listeners) listener()

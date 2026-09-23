@@ -11,7 +11,7 @@ document.body.append(container)
 const root = client.createRoot(container)
 const application = new Application(connect())
 
-// The browser projection belongs to this iframe document, not to a React
+// The Flambo projection belongs to this iframe document, not to a React
 // mount. Strict Mode may replay component lifecycles, but it must not create a
 // second authoritative Workspace.
 void application.start().catch(error => application.fail(error))

@@ -1,14 +1,14 @@
-# Browser
+# Flambo
 
 A shared browser for people and agents on PhreshOS.
 
 [PhreshOS](https://phreshos.com) ·
 [Documentation](https://docs.phreshos.com) ·
-[Source](https://github.com/PhreshOS/browser-program)
+[Source](https://github.com/PhreshOS/flambo-program)
 
 ## Role
 
-Browser provides authoritative Workspaces and Tabs that a person and an agent
+Flambo provides authoritative Workspaces and Tabs that a person and an agent
 can observe and control together. The Server owns browser execution and the
 Client presents the same state through the PhreshOS Desktop.
 
@@ -54,7 +54,7 @@ queue. Agent operations and human input mutate the same authoritative state.
   [`@phreshos/server`](https://github.com/PhreshOS/server) provide the two
   runtime boundaries used by the Program.
 - [`@phreshos/react-ui`](https://github.com/PhreshOS/react-ui) provides the
-  Browser interface components and Appearance integration.
+  Flambo interface components and Appearance integration.
 - [PhreshOS System](https://github.com/PhreshOS/system) runs the resulting
   Program.
 

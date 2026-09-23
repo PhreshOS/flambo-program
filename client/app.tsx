@@ -3,7 +3,7 @@ import { desktop, system } from "@phreshos/client"
 import { DesktopProvider, SystemProvider, useDesktopPreferences, useSystemAppearance } from "@phreshos/react"
 import { Button, Input, ProgressBar, Surface, Toolbar, UIProvider } from "@phreshos/react-ui"
 import Application from "./core/application"
-import type { TabObservationFrame, TabSnapshot, Viewport } from "../shared/browser"
+import type { TabObservationFrame, TabSnapshot, Viewport } from "../shared/flambo"
 
 export default function App({ application }: Readonly<{ application: Application }>) {
   return <SystemProvider system={system} fallback={<Loading label="Connecting to System…" />}>
@@ -16,10 +16,10 @@ export default function App({ application }: Readonly<{ application: Application
 function Theme({ application }: Readonly<{ application: Application }>) {
   const appearance = useSystemAppearance()
   const preferences = useDesktopPreferences()
-  return <UIProvider appearance={appearance} preferences={preferences}><BrowserWindow application={application} /></UIProvider>
+  return <UIProvider appearance={appearance} preferences={preferences}><FlamboWindow application={application} /></UIProvider>
 }
 
-function BrowserWindow({ application }: Readonly<{ application: Application }>) {
+function FlamboWindow({ application }: Readonly<{ application: Application }>) {
   const state = useSyncExternalStore(application.subscribe, application.snapshot)
   const workspace = state.workspace
   const active = workspace?.tabs.find(tab => tab.id === workspace.activeTab) ?? null
@@ -28,11 +28,11 @@ function BrowserWindow({ application }: Readonly<{ application: Application }>) 
   const createTab = () => application.createTab(viewport.current).catch(error => application.fail(error))
   const createWorkspace = () => application.createWorkspace().catch(error => application.fail(error))
 
-  return <main className="browser-shell">
+  return <main className="flambo-shell">
     <Surface className="tab-strip" radius="none" shadow={false}>
       <Button aria-label="New workspace" size="xsmall" onPress={createWorkspace}><Icon name="workspace" /></Button>
-      <div className="tabs" aria-label="Browser tabs">
-        {workspace?.tabs.map(tab => <BrowserTab
+      <div className="tabs" aria-label="Flambo tabs">
+        {workspace?.tabs.map(tab => <FlamboTab
           key={tab.id}
           tab={tab}
           active={tab.id === workspace.activeTab}
@@ -54,20 +54,20 @@ function BrowserWindow({ application }: Readonly<{ application: Application }>) 
       onViewport={rememberViewport}
     />
 
-    {state.error && <Surface className="browser-error" color="danger:soft" material="basic" radius="small" role="alert">
+    {state.error && <Surface className="flambo-error" color="danger:soft" material="basic" radius="small" role="alert">
       <span>{state.error}</span>
       <Button size="xsmall" color="danger:base" onPress={() => location.reload()}>Reconnect</Button>
     </Surface>}
   </main>
 }
 
-function BrowserTab({ active, onClose, onSelect, tab }: Readonly<{
+function FlamboTab({ active, onClose, onSelect, tab }: Readonly<{
   active: boolean
   onClose: () => void
   onSelect: () => void
   tab: TabSnapshot
 }>) {
-  return <div className="browser-tab">
+  return <div className="flambo-tab">
     <Button
       aria-current={active ? "page" : undefined}
       color={active ? "primary:soft" : "default:subtle"}

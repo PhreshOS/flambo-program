@@ -1,6 +1,6 @@
 import { chromium, type Browser, type BrowserContext as PlaywrightContext, type CDPSession, type Disposable, type Page } from "playwright"
 import type { BrowserContext, BrowserEngine, BrowserFrame, BrowserPage } from "./browser-engine"
-import type { KeyModifiers, PointerButton, Viewport } from "../../shared/browser"
+import type { KeyModifiers, PointerButton, Viewport } from "../../shared/flambo"
 
 /** Chromium implementation of the browser domain's execution contract. */
 export default class ChromiumEngine implements BrowserEngine {
@@ -63,7 +63,7 @@ class ChromiumPage implements BrowserPage {
 
   public async state() {
     const viewport = this.page.viewportSize()
-    if (!viewport) throw new Error("Chromium returned no viewport for the browser Tab")
+    if (!viewport) throw new Error("Chromium returned no viewport for the Flambo Tab")
     // Chromium's navigation history is authoritative for both back and forward;
     // deriving only from URLs cannot distinguish a forward entry after going back.
     const [title, history] = await Promise.all([

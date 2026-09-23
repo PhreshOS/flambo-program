@@ -12,7 +12,7 @@ test("Chromium executes navigation, input, and isolated Workspace state", async 
     const page = await first.open({ width: 640, height: 480 })
     const isolated = await second.open({ width: 320, height: 240 })
 
-    await page.navigate("data:text/html,<title>Browser test</title><input autofocus>")
+    await page.navigate("data:text/html,<title>Flambo test</title><input autofocus>")
     await page.type("shared input")
     const state = await page.state()
     const frame = await page.capture()
@@ -25,7 +25,7 @@ test("Chromium executes navigation, input, and isolated Workspace state", async 
       await page.reload()
     })
 
-    assert.equal(state.title, "Browser test")
+    assert.equal(state.title, "Flambo test")
     assert.equal(state.canGoBack, true)
     assert.equal(state.canGoForward, false)
     assert.deepEqual(state.viewport, { width: 640, height: 480 })

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto"
-import type { WorkspaceSnapshot } from "../../shared/browser"
+import type { WorkspaceSnapshot } from "../../shared/flambo"
 import type { BrowserEngine } from "./browser-engine"
 import Workspace from "./workspace"
 
@@ -19,7 +19,7 @@ export type ApplicationEvent =
   | Readonly<{ type: "workspace.changed", snapshot: WorkspaceSnapshot }>
   | Readonly<{ type: "workspace.closed", workspace: string }>
 
-/** Owns the complete authoritative set of live browser Workspaces. */
+/** Owns the complete authoritative set of live Flambo Workspaces. */
 export default class Application {
   private readonly workspaces = new Map<string, Workspace>()
   private readonly clientsByWorkspace = new Map<string, WorkspaceClient>()
@@ -67,7 +67,7 @@ export default class Application {
   public workspace(id: string) {
     this.ensureOpen()
     const workspace = this.workspaces.get(id)
-    if (!workspace) throw new Error("The browser Workspace does not exist")
+    if (!workspace) throw new Error("The Flambo Workspace does not exist")
     return workspace
   }
 
@@ -110,7 +110,7 @@ export default class Application {
 
     if (this.disposed) {
       await context.close().catch(() => undefined)
-      throw new Error("The browser application is closed")
+      throw new Error("The Flambo application is closed")
     }
 
     const workspace = new Workspace(randomUUID(), context)
@@ -125,12 +125,12 @@ export default class Application {
   private bind(workspace: Workspace, client: WorkspaceClient) {
     const currentClient = this.clientsByWorkspace.get(workspace.id)
     if (currentClient && currentClient.identity !== client.identity) {
-      throw new Error("The browser Workspace already belongs to another Client")
+      throw new Error("The Flambo Workspace already belongs to another Client")
     }
 
     const currentWorkspace = this.workspaceByClient.get(client.identity)
     if (currentWorkspace && currentWorkspace !== workspace.id) {
-      throw new Error("The browser Client already belongs to another Workspace")
+      throw new Error("The Flambo Client already belongs to another Workspace")
     }
 
     if (currentClient) return
@@ -182,7 +182,7 @@ export default class Application {
   }
 
   private ensureOpen() {
-    if (this.disposed) throw new Error("The browser application is closed")
+    if (this.disposed) throw new Error("The Flambo application is closed")
   }
 
   private emit(event: ApplicationEvent) {

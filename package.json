@@ -1,8 +1,8 @@
 {
-    "name": "browser-program",
+    "name": "flambo-program",
     "private": true,
-    "version": "0.1.0",
-    "description": "A shared browser for people and agents on PhreshOS.",
+    "version": "0.1.49",
+    "description": "Flambo is a shared browser for people and agents on PhreshOS.",
     "type": "module",
     "scripts": {
         "check": "tsc --noEmit",
@@ -20,18 +20,18 @@
         "browser"
     ],
     "dependencies": {
-        "@phreshos/client": "^0.1.48",
-        "@phreshos/core": "^0.1.56",
-        "@phreshos/react": "^0.1.29",
+        "@phreshos/client": "^0.1.49",
+        "@phreshos/core": "^0.1.58",
+        "@phreshos/react": "^0.1.30",
         "@phreshos/react-ui": "^0.1.32",
-        "@phreshos/server": "^0.1.52",
+        "@phreshos/server": "^0.1.54",
         "playwright": "^1.63.0",
         "react": "^19.2.8",
         "react-dom": "^19.2.8",
         "zod": "^4.6.5"
     },
     "devDependencies": {
-        "@phreshos/cli": "^0.1.68",
+        "@phreshos/cli": "^0.1.69",
         "@types/node": "^26.4.0",
         "@types/react": "^19.2.18",
         "@types/react-dom": "^19.2.5",

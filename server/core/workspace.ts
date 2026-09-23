@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto"
 import type { BrowserContext, BrowserPage } from "./browser-engine"
-import type { KeyModifiers, PointerButton, TabFrame, TabSnapshot, Viewport, WorkspaceSnapshot } from "../../shared/browser"
+import type { KeyModifiers, PointerButton, TabFrame, TabSnapshot, Viewport, WorkspaceSnapshot } from "../../shared/flambo"
 
 type Tab = {
   readonly id: string
@@ -9,7 +9,7 @@ type Tab = {
   state: TabSnapshot
 }
 
-/** Owns one authoritative browser Workspace and its ordered Tab state. */
+/** Owns one authoritative Flambo Workspace and its ordered Tab state. */
 export default class Workspace {
   private readonly tabs = new Map<string, Tab>()
   private readonly listeners = new Set<(snapshot: WorkspaceSnapshot) => unknown>()
@@ -37,7 +37,7 @@ export default class Workspace {
         const tab: Tab = { id, page, state, releaseState: () => undefined }
         this.tabs.set(id, tab)
         // Page-originated redirects and navigations enter the same serialized
-        // Workspace revision path as explicit Browser operations.
+        // Workspace revision path as explicit Flambo operations.
         tab.releaseState = page.observeState(() => {
           void this.refreshTab(id).catch(() => undefined)
         })
@@ -179,7 +179,7 @@ export default class Workspace {
   }
 
   private schedule<Result>(operation: () => Promise<Result> | Result): Promise<Result> {
-    if (this.closing) return Promise.reject(new Error("The browser Workspace is closed"))
+    if (this.closing) return Promise.reject(new Error("The Flambo Workspace is closed"))
     const task = this.queue.then(operation)
     this.queue = task.then(() => undefined, () => undefined)
     return task
@@ -187,7 +187,7 @@ export default class Workspace {
 
   private requireTab(id: string) {
     const tab = this.tabs.get(id)
-    if (!tab) throw new Error("The browser Tab does not exist in this Workspace")
+    if (!tab) throw new Error("The Flambo Tab does not exist in this Workspace")
     return tab
   }
 
