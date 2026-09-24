@@ -5,6 +5,7 @@ import { Button, Input, ProgressBar, Surface, Toolbar, UIProvider, Window, useCo
 import flamboIcon from "../icon.png"
 import Application from "./core/application"
 import type { TabObservationFrame, TabSnapshot, Viewport } from "../shared/flambo"
+import { resolveWorkspaceView, type WorkspaceView } from "./view/workspace-view"
 
 export default function App({ application }: Readonly<{ application: Application }>) {
   return <SystemProvider system={system} fallback={<Loading label="Connecting to System…" />}>
@@ -23,7 +24,8 @@ function Theme({ application }: Readonly<{ application: Application }>) {
 function FlamboWindow({ application }: Readonly<{ application: Application }>) {
   const state = useSyncExternalStore(application.subscribe, application.snapshot)
   const workspace = state.workspace
-  const active = workspace?.tabs.find(tab => tab.id === workspace.activeTab) ?? null
+  const view = resolveWorkspaceView(state)
+  const active = view.phase === "tab" ? view.tab : null
   const viewport = useRef<Viewport>({ width: 1024, height: 720 })
   const address = useRef<HTMLInputElement>(null)
   const rememberViewport = useCallback((value: Viewport) => { viewport.current = value }, [])
@@ -56,7 +58,7 @@ function FlamboWindow({ application }: Readonly<{ application: Application }>) {
             onClose={() => void application.closeTab(tab.id).catch(error => application.fail(error))}
           />)}
         </div>
-        <Button aria-label="New tab" size="xsmall" onPress={createTab}><Icon name="plus" /></Button>
+        <Button aria-label="New tab" size="xsmall" disabled={!workspace} onPress={createTab}><Icon name="plus" /></Button>
       </Window.Header.Center>
       <Window.Header.Actions>
         <Window.Header.Action aria-label="New workspace" onPress={createWorkspace}><Icon name="workspace" /></Window.Header.Action>
@@ -70,7 +72,7 @@ function FlamboWindow({ application }: Readonly<{ application: Application }>) {
 
     <PageViewport
       application={application}
-      tab={active}
+      view={view}
       frame={state.frame}
       onViewport={rememberViewport}
       onFocusAddress={() => address.current?.focus()}
@@ -156,15 +158,16 @@ function Navigation({ addressRef, application, tab }: Readonly<{ addressRef: Ref
   </Surface>
 }
 
-function PageViewport({ application, frame, onFocusAddress, onNewTab, onNewWorkspace, onViewport, tab }: Readonly<{
+function PageViewport({ application, frame, onFocusAddress, onNewTab, onNewWorkspace, onViewport, view }: Readonly<{
   application: Application
   frame: TabObservationFrame | null
   onViewport: (viewport: Viewport) => void
   onFocusAddress: () => void
   onNewTab: () => void
   onNewWorkspace: () => void
-  tab: TabSnapshot | null
+  view: WorkspaceView
 }>) {
+  const tab = view.phase === "tab" ? view.tab : null
   const stage = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
   const [painted, setPainted] = useState<Readonly<{ observation: string, tab: string }> | null>(null)
@@ -266,29 +269,51 @@ function PageViewport({ application, frame, onFocusAddress, onNewTab, onNewWorks
 
   const displaying = !!frame && painted?.observation === frame.observation && painted.tab === tab?.id
 
+  const content = (() => {
+    switch (view.phase) {
+      case "loading":
+        return <div className="loading"><ProgressBar label="Loading workspace…" indeterminate /></div>
+      case "unavailable":
+        return <Surface className="page-surface" color="background:base" material="none" radius="none" shadow={false}>
+          <EmptyPage title="Workspace unavailable" detail="This workspace is no longer available." />
+        </Surface>
+      case "empty":
+        return <Surface className="page-surface" color="background:base" material="none" radius="none" shadow={false}>
+          <EmptyPage title="No open tabs" detail="Open a tab to begin browsing." />
+        </Surface>
+      case "inactive":
+        return <Surface className="page-surface" color="background:base" material="none" radius="none" shadow={false}>
+          <EmptyPage title="No active tab" detail="Select a tab to continue browsing." />
+        </Surface>
+      case "tab": {
+        const activeTab = view.tab
+        return activeTab.url === "about:blank"
+          ? <WelcomePage onFocusAddress={onFocusAddress} onNewTab={onNewTab} onNewWorkspace={onNewWorkspace} />
+          : <Surface className="page-surface" color="background:base" material="none" radius="none" shadow={false}>
+            <canvas
+              ref={canvas}
+              className="page-frame"
+              aria-label={`Rendered page: ${activeTab.title || activeTab.url}`}
+              role="img"
+              tabIndex={0}
+              hidden={!displaying}
+              onPointerDown={pointer}
+              onPointerMove={movePointer}
+              onWheel={wheel}
+              onKeyDown={key}
+              onContextMenu={event => event.preventDefault()}
+            />
+          </Surface>
+      }
+      default:
+        return view satisfies never
+    }
+  })()
+
   // This host remains stable while the Tab moves between local chrome and a
   // remote page. The viewport observer must never remain attached to a root
   // that React replaced during the first navigation.
-  return <div ref={stage} className="page-viewport">
-    {tab?.url === "about:blank"
-      ? <WelcomePage onFocusAddress={onFocusAddress} onNewTab={onNewTab} onNewWorkspace={onNewWorkspace} />
-      : <Surface className="page-surface" color="background:base" material="none" radius="none" shadow={false}>
-        {!tab && <EmptyPage title="No open tabs" detail="Open a tab to begin browsing." />}
-        {tab && <canvas
-          ref={canvas}
-          className="page-frame"
-          aria-label={`Rendered page: ${tab.title || tab.url}`}
-          role="img"
-          tabIndex={0}
-          hidden={!displaying}
-          onPointerDown={pointer}
-          onPointerMove={movePointer}
-          onWheel={wheel}
-          onKeyDown={key}
-          onContextMenu={event => event.preventDefault()}
-        />}
-      </Surface>}
-  </div>
+  return <div ref={stage} className="page-viewport">{content}</div>
 }
 
 function WelcomePage({ onFocusAddress, onNewTab, onNewWorkspace }: Readonly<{
