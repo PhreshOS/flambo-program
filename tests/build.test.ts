@@ -12,7 +12,10 @@ test("build contract", async () => {
   assert.equal(config.server?.worker, "main.js")
   assert.equal(config.server?.devCommand, "vite-node server/main.ts")
   assert.equal(config.server?.service, true)
-  assert.match(config.server?.installCommand ?? "", /playwright install chromium/)
+  assert.equal(
+    config.server?.installCommand,
+    "npm install --omit=dev --no-audit && npx playwright install --with-deps chromium"
+  )
   assert.equal(config.client?.location, "dist/client")
   assert.deepEqual(config.client?.size, { width: 1100, height: 720 })
 
