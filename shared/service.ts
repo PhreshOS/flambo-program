@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { maximumViewportDimension } from "./flambo"
 import type {
   KeyModifiers,
   PointerButton,
@@ -16,9 +17,9 @@ export type FlamboServiceEvents = {
 }
 
 export type FlamboRequests = {
-  "workspace.attach": { input: undefined, output: WorkspaceSnapshot }
+  "workspace.attach": { input: WorkspaceStart, output: WorkspaceSnapshot }
   "workspace.list": { input: undefined, output: readonly WorkspaceSnapshot[] }
-  "workspace.create": { input: undefined, output: WorkspaceSnapshot }
+  "workspace.create": { input: WorkspaceStart, output: WorkspaceSnapshot }
   "workspace.read": { input: WorkspaceRequest, output: WorkspaceSnapshot }
   "workspace.close": { input: WorkspaceRequest, output: null }
   "tab.create": { input: WorkspaceRequest & Readonly<{ viewport: Viewport }>, output: TabSnapshot }
@@ -41,13 +42,14 @@ export type FlamboRequests = {
 }
 
 export type WorkspaceRequest = Readonly<{ workspace: string }>
+export type WorkspaceStart = Readonly<{ viewport: Viewport }>
 export type TabRequest = WorkspaceRequest & Readonly<{ tab: string }>
 export type ObservationRequest = Readonly<{ observation: string }>
 
 const identity = z.string().min(1)
 const viewport = z.object({
-  width: z.number().int().positive().max(8192),
-  height: z.number().int().positive().max(8192)
+  width: z.number().int().positive().max(maximumViewportDimension),
+  height: z.number().int().positive().max(maximumViewportDimension)
 })
 const workspace = z.object({ workspace: identity })
 const tab = workspace.extend({ tab: identity })
@@ -58,6 +60,7 @@ const point = tab.extend({
 })
 
 export const requests = {
+  workspaceStart: z.object({ viewport }),
   workspace,
   tab,
   tabCreate: workspace.extend({ viewport }),

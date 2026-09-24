@@ -8,6 +8,7 @@ export type BrowserFrame = Readonly<{
 export interface BrowserPage {
   state(): Promise<PageState>
   observeState(listener: () => unknown): () => void
+  observeLoading(listener: (loading: boolean) => unknown): () => void
   capture(): Promise<Uint8Array>
   observeFrames(listener: (frame: BrowserFrame) => unknown): Promise<() => void>
   navigate(url: string): Promise<void>

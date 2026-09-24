@@ -1,3 +1,5 @@
+export const maximumViewportDimension = 8192
+
 export type Viewport = Readonly<{
   width: number
   height: number
@@ -7,6 +9,8 @@ export type TabSnapshot = Readonly<{
   id: string
   url: string
   title: string
+  favicon: string | null
+  loading: boolean
   canGoBack: boolean
   canGoForward: boolean
   viewport: Viewport
@@ -34,6 +38,8 @@ export type WorkspaceSnapshot = Readonly<{
 export type PageState = Readonly<{
   url: string
   title: string
+  favicon: string | null
+  loading: boolean
   canGoBack: boolean
   canGoForward: boolean
   viewport: Viewport

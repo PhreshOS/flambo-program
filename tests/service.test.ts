@@ -9,14 +9,16 @@ import { test } from "vitest"
 class Page implements BrowserPage {
   private readonly frameListeners = new Set<Parameters<BrowserPage["observeFrames"]>[0]>()
   private readonly stateListeners = new Set<() => unknown>()
+  private readonly loadingListeners = new Set<(loading: boolean) => unknown>()
   private current: PageState
 
   public constructor(viewport: Viewport) {
-    this.current = { url: "about:blank", title: "", canGoBack: false, canGoForward: false, viewport }
+    this.current = { url: "about:blank", title: "", favicon: null, loading: false, canGoBack: false, canGoForward: false, viewport }
   }
 
   public async state() { return this.current }
   public observeState(listener: () => unknown) { this.stateListeners.add(listener); return () => { this.stateListeners.delete(listener) } }
+  public observeLoading(listener: (loading: boolean) => unknown) { this.loadingListeners.add(listener); return () => { this.loadingListeners.delete(listener) } }
   public async capture() { return Uint8Array.from([0xff, 0xd8, 0xff, 0xd9]) }
   public async observeFrames(listener: Parameters<BrowserPage["observeFrames"]>[0]) {
     this.frameListeners.add(listener)
@@ -150,11 +152,10 @@ test("Service requests and publications preserve authoritative revisions", async
   const boundary = new Boundary()
   serve(flambo, boundary)
 
-  const workspace = await boundary.ask("workspace.create") as { id: string }
-  const tab = await boundary.ask("tab.create", {
-    workspace: workspace.id,
+  const workspace = await boundary.ask("workspace.create", {
     viewport: { width: 900, height: 600 }
-  }) as { id: string }
+  }) as { id: string, tabs: Array<{ id: string }> }
+  const tab = workspace.tabs[0]!
   await boundary.ask("tab.navigate", {
     workspace: workspace.id,
     tab: tab.id,
@@ -174,7 +175,6 @@ test("Service requests and publications preserve authoritative revisions", async
   assert.equal(frame.mimeType, "image/jpeg")
   assert.deepEqual(frame.data, Uint8Array.from([0xff, 0xd8, 0xff, 0xd9]))
   assert.deepEqual(boundary.publications.map(([event, payload]) => [event, (payload as { revision?: number }).revision]), [
-    ["workspace.changed", 0],
     ["workspace.changed", 1],
     ["workspace.changed", 2]
   ])
@@ -194,19 +194,43 @@ test("Service rejects invalid input at its boundary", async () => {
 })
 
 test("Service reattaches one Client Process and closes both sides as one lifetime", async () => {
-  const flambo = application()
+  const engine = new Engine()
+  const flambo = application(engine)
   const boundary = new Boundary()
   const owner = workspaceOwner()
   serve(flambo, boundary)
 
-  const first = await boundary.ask("workspace.attach", undefined, owner.endpoint) as { id: string }
-  const reloaded = await boundary.ask("workspace.attach", undefined, owner.endpoint) as { id: string }
+  const first = await boundary.ask("workspace.attach", {
+    viewport: { width: 900, height: 600 }
+  }, owner.endpoint) as { id: string, tabs: readonly unknown[] }
+  const reloaded = await boundary.ask("workspace.attach", {
+    viewport: { width: 1200, height: 700 }
+  }, owner.endpoint) as { id: string, tabs: readonly unknown[] }
   assert.equal(reloaded.id, first.id)
+  assert.equal(reloaded.tabs.length, 1)
   assert.equal((await flambo.listWorkspaces()).length, 1)
+  assert.equal(engine.contexts.length, 1)
+  assert.equal(engine.contexts[0]?.pages.length, 1)
 
   await boundary.ask("workspace.close", { workspace: first.id })
   assert.equal(await owner.process.exited(), true)
   await assert.rejects(() => boundary.ask("workspace.read", { workspace: first.id }), /does not exist/)
+})
+
+test("Closing the last Tab closes its Workspace through the service", async () => {
+  const flambo = application()
+  const boundary = new Boundary()
+  serve(flambo, boundary)
+
+  const workspace = await boundary.ask("workspace.create", {
+    viewport: { width: 900, height: 600 }
+  }) as { id: string, tabs: Array<{ id: string }> }
+  const tab = workspace.tabs[0]!
+
+  await boundary.ask("tab.close", { workspace: workspace.id, tab: tab.id })
+
+  assert.deepEqual(boundary.publications.at(-1), ["workspace.closed", { workspace: workspace.id }])
+  await assert.rejects(() => boundary.ask("workspace.read", { workspace: workspace.id }), /does not exist/)
 })
 
 test("Tab observation applies acknowledgement backpressure and releases with its Client", async () => {
@@ -214,11 +238,10 @@ test("Tab observation applies acknowledgement backpressure and releases with its
   const boundary = new Boundary()
   serve(application(engine), boundary)
   const client = owner()
-  const workspace = await boundary.ask("workspace.create") as { id: string }
-  const tab = await boundary.ask("tab.create", {
-    workspace: workspace.id,
+  const workspace = await boundary.ask("workspace.create", {
     viewport: { width: 900, height: 600 }
-  }) as { id: string }
+  }) as { id: string, tabs: Array<{ id: string }> }
+  const tab = workspace.tabs[0]!
 
   const first = await boundary.ask("tab.observe", {
     workspace: workspace.id,

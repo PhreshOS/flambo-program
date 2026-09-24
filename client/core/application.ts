@@ -60,7 +60,7 @@ export default class Application {
     this.buffered = []
 
     const loading = (async () => {
-      const initial = await this.api.request("workspace.attach", undefined)
+      const initial = await this.api.request("workspace.attach", { viewport })
       this.workspace = initial.id
       this.receiveWorkspace(initial)
 
@@ -68,12 +68,6 @@ export default class Application {
       for (const snapshot of this.buffered ?? []) this.receiveWorkspace(snapshot)
       this.buffered = null
 
-      let current = this.state.workspace
-      if (current && current.tabs.length === 0) {
-        await this.api.request("tab.create", { workspace: current.id, viewport })
-        current = await this.api.request("workspace.read", { workspace: current.id })
-        this.receiveWorkspace(current)
-      }
       this.set({ status: "ready" })
       await this.observeActiveTab()
     })().catch(error => this.fail(error)).finally(() => {
@@ -85,10 +79,10 @@ export default class Application {
     return loading
   }
 
-  public createWorkspace() {
+  public createWorkspace(viewport: Viewport) {
     // Creating another Workspace creates another Client; this Client keeps
     // presenting the Workspace that defines its own lifetime.
-    return this.api.request("workspace.create", undefined)
+    return this.api.request("workspace.create", { viewport })
   }
 
   public async createTab(viewport: Viewport) {
@@ -245,9 +239,9 @@ export default class Application {
   private receiveWorkspace(snapshot: WorkspaceSnapshot) {
     if (snapshot.id !== this.workspace) return
     if (this.state.workspace && snapshot.revision < this.state.workspace.revision) return
-    const activeChanged = snapshot.activeTab !== this.state.workspace?.activeTab
-    this.set({ workspace: snapshot })
-    if (activeChanged && this.state.status === "ready") {
+    const active = snapshot.tabs.find(tab => tab.id === snapshot.activeTab)
+    this.set({ workspace: snapshot, ...(active?.url === "about:blank" ? { frame: null } : {}) })
+    if (this.state.status === "ready") {
       void this.observeActiveTab().catch(error => this.fail(error))
     }
   }
@@ -255,7 +249,10 @@ export default class Application {
   private updateTab(tab: TabSnapshot) {
     const workspace = this.requireWorkspace()
     const tabs = workspace.tabs.map(current => current.id === tab.id ? tab : current)
-    this.set({ workspace: Object.freeze({ ...workspace, tabs: Object.freeze(tabs) }) })
+    const snapshot = Object.freeze({ ...workspace, tabs: Object.freeze(tabs) })
+    const active = snapshot.tabs.find(current => current.id === snapshot.activeTab)
+    this.set({ workspace: snapshot, ...(active?.url === "about:blank" ? { frame: null } : {}) })
+    if (this.state.status === "ready") void this.observeActiveTab().catch(error => this.fail(error))
     return tab
   }
 
@@ -266,7 +263,11 @@ export default class Application {
   }
 
   private async observeActiveTab() {
-    const tab = this.state.workspace?.activeTab ?? null
+    const active = this.state.workspace?.tabs.find(tab => tab.id === this.state.workspace?.activeTab)
+    // The welcome page is local application chrome and therefore has no page
+    // frame consumer. Start a fresh observation only after the Tab leaves it,
+    // so the first returned capture is authoritative for the navigated page.
+    const tab = active?.url === "about:blank" ? null : active?.id ?? null
     if (tab === this.observedTab) return
     const generation = ++this.observationGeneration
     const previous = this.observation

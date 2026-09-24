@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto"
 import type { WorkspaceSnapshot } from "../../shared/flambo"
+import type { Viewport } from "../../shared/flambo"
 import type { BrowserEngine } from "./browser-engine"
 import Workspace from "./workspace"
 
@@ -35,9 +36,9 @@ export default class Application {
   ) {}
 
   /** Creates one Workspace and its distinct presenting Client. */
-  public async createWorkspace() {
+  public async createWorkspace(viewport: Viewport) {
     return await this.scheduleLifecycle(async () => {
-      const workspace = await this.createUnboundWorkspace()
+      const workspace = await this.createUnboundWorkspace(viewport)
 
       try {
         this.bind(workspace, await this.clients.create(workspace.id))
@@ -50,14 +51,14 @@ export default class Application {
   }
 
   /** Resolves the one Workspace permanently associated with a Client Process. */
-  public async attachClient(client: WorkspaceClient) {
+  public async attachClient(client: WorkspaceClient, viewport: Viewport) {
     return await this.scheduleLifecycle(async () => {
       const attached = this.workspaceByClient.get(client.identity)
       if (attached) return this.workspace(attached)
 
       const workspace = client.assignment
         ? this.workspace(client.assignment)
-        : await this.createUnboundWorkspace()
+        : await this.createUnboundWorkspace(viewport)
 
       this.bind(workspace, client)
       return workspace
@@ -78,6 +79,22 @@ export default class Application {
 
   public async closeWorkspace(id: string) {
     await this.scheduleLifecycle(() => this.finishWorkspace(id, true))
+  }
+
+  public async closeTab(workspaceId: string, tabId: string) {
+    await this.scheduleLifecycle(async () => {
+      const workspace = this.workspace(workspaceId)
+      const snapshot = await workspace.snapshot()
+
+      // The last Tab and its presenting Client share the Workspace lifetime;
+      // publishing an empty live Workspace would leave both sides ownerless.
+      if (snapshot.tabs.length === 1 && snapshot.tabs[0]?.id === tabId) {
+        await this.finishWorkspace(workspaceId, true)
+        return
+      }
+
+      await workspace.closeTab(tabId)
+    })
   }
 
   public subscribe(listener: (event: ApplicationEvent) => unknown) {
@@ -104,16 +121,21 @@ export default class Application {
     this.listeners.clear()
   }
 
-  private async createUnboundWorkspace() {
+  private async createUnboundWorkspace(viewport: Viewport) {
     this.ensureOpen()
     const context = await this.engine.createWorkspace()
+    const workspace = new Workspace(randomUUID(), context)
 
-    if (this.disposed) {
-      await context.close().catch(() => undefined)
-      throw new Error("The Flambo application is closed")
+    try {
+      // The first Tab belongs to Workspace creation. No Client may observe an
+      // empty Workspace and independently repeat this occurrence.
+      await workspace.createTab(viewport)
+      this.ensureOpen()
+    } catch (error) {
+      await workspace.close().catch(() => undefined)
+      throw error
     }
 
-    const workspace = new Workspace(randomUUID(), context)
     workspace.subscribe(snapshot => {
       this.emit({ type: "workspace.changed", snapshot })
     })

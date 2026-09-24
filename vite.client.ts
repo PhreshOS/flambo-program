@@ -7,7 +7,9 @@ export default defineConfig({
     plugins: [react()],
     base: process.env.PHRESHOS_CLIENT_BASE ?? "./",
     resolve: {
-        tsconfigPaths: true
+        tsconfigPaths: true,
+        // Linked SDKs must consume the Program's renderer instance.
+        dedupe: ["react", "react-dom"]
     },
     server: {
         port: Number(process.env.PHRESHOS_CLIENT_PORT ?? "5200"),

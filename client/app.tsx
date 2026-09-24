@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent, type PointerEvent, type WheelEvent } from "react"
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent, type PointerEvent, type RefObject, type WheelEvent } from "react"
 import { context, desktop, system } from "@phreshos/client"
 import { DesktopProvider, SystemProvider, useDesktopPreferences, useSystemAppearance, useWindowState } from "@phreshos/react"
-import { Button, Input, ProgressBar, Surface, Toolbar, UIProvider, Window } from "@phreshos/react-ui"
+import { Button, Input, ProgressBar, Surface, Toolbar, UIProvider, Window, useContrastingColor } from "@phreshos/react-ui"
 import flamboIcon from "../icon.png"
 import Application from "./core/application"
 import type { TabObservationFrame, TabSnapshot, Viewport } from "../shared/flambo"
@@ -25,9 +25,10 @@ function FlamboWindow({ application }: Readonly<{ application: Application }>) {
   const workspace = state.workspace
   const active = workspace?.tabs.find(tab => tab.id === workspace.activeTab) ?? null
   const viewport = useRef<Viewport>({ width: 1024, height: 720 })
+  const address = useRef<HTMLInputElement>(null)
   const rememberViewport = useCallback((value: Viewport) => { viewport.current = value }, [])
   const createTab = () => application.createTab(viewport.current).catch(error => application.fail(error))
-  const createWorkspace = () => application.createWorkspace().catch(error => application.fail(error))
+  const createWorkspace = () => application.createWorkspace(viewport.current).catch(error => application.fail(error))
   const window = useWindowState(context.window)
   const actOnWindow = (operation: () => Promise<unknown>) => void operation().catch(error => application.fail(error))
   const toggleMaximize = async () => context.window.maximize(!await context.window.maximized())
@@ -38,41 +39,43 @@ function FlamboWindow({ application }: Readonly<{ application: Application }>) {
       className="window-titlebar"
       active={window?.front ?? true}
       beginMoveGesture={start => context.presentation.beginMoveGesture(start)}
+      maximized={window?.maximized ?? false}
+      onMaximize={() => actOnWindow(toggleMaximize)}
       onMoveError={error => application.fail(error)}
-      onDoubleClick={() => actOnWindow(toggleMaximize)}
     >
-      <Window.Header.Identity icon={flamboIcon} title="Flambo" />
+      <Window.Header.Identity icon={flamboIcon} />
       {/* Center stops drag propagation, so it must cover controls only; unused
           header space remains owned by the draggable Header root. */}
       <Window.Header.Center className="window-tabs" style={{ flex: "0 1 auto" }}>
-        <Button aria-label="New workspace" size="xsmall" onPress={createWorkspace}><Icon name="workspace" /></Button>
         <div className="tabs" aria-label="Flambo tabs">
           {workspace?.tabs.map(tab => <FlamboTab
             key={tab.id}
             tab={tab}
             active={tab.id === workspace.activeTab}
             onSelect={() => void application.selectTab(tab.id).catch(error => application.fail(error))}
-            onClose={() => void application.closeTab(tab.id).then(() => {
-              if (workspace.tabs.length === 1) return createTab()
-            }).catch(error => application.fail(error))}
+            onClose={() => void application.closeTab(tab.id).catch(error => application.fail(error))}
           />)}
         </div>
         <Button aria-label="New tab" size="xsmall" onPress={createTab}><Icon name="plus" /></Button>
       </Window.Header.Center>
       <Window.Header.Actions>
+        <Window.Header.Action aria-label="New workspace" onPress={createWorkspace}><Icon name="workspace" /></Window.Header.Action>
         <Window.Header.Minimize preventFocusOnPress={false} onPress={() => actOnWindow(() => context.window.minimize())} />
-        <Window.Header.Maximize maximized={window?.maximized ?? false} onPress={() => actOnWindow(toggleMaximize)} />
+        <Window.Header.Maximize />
         <Window.Header.Close preventFocusOnPress={false} onPress={() => actOnWindow(close)} />
       </Window.Header.Actions>
     </Window.Header>
 
-    <Navigation application={application} tab={active} />
+    <Navigation addressRef={address} application={application} tab={active} />
 
     <PageViewport
       application={application}
       tab={active}
       frame={state.frame}
       onViewport={rememberViewport}
+      onFocusAddress={() => address.current?.focus()}
+      onNewTab={createTab}
+      onNewWorkspace={createWorkspace}
     />
 
     {state.error && <Surface className="flambo-error" color="danger:soft" material="basic" radius="small" role="alert">
@@ -88,22 +91,35 @@ function FlamboTab({ active, onClose, onSelect, tab }: Readonly<{
   onSelect: () => void
   tab: TabSnapshot
 }>) {
+  const color = active ? "primary:soft" : "default:subtle"
+  const contentColor = useContrastingColor(color)
+
   return <div className="flambo-tab">
     <Button
+      className="tab-select"
       aria-current={active ? "page" : undefined}
-      color={active ? "primary:soft" : "default:subtle"}
+      color={color}
       size="xsmall"
       onPress={onSelect}
-      style={{ flex: "1 1 auto", justifyContent: "start" }}
+      style={{
+        gridAutoColumns: "initial",
+        gridTemplateColumns: "max-content minmax(0, 1fr)",
+        justifyContent: "start",
+        overflow: "hidden"
+      }}
     >
-      <Icon name="page" />
+      {tab.loading
+        ? <span className="tab-loading" aria-label="Loading page" role="status" />
+        : tab.favicon
+          ? <img className="tab-favicon" src={tab.favicon} alt="" />
+          : <Icon name="page" />}
       <span className="tab-title">{tab.title || newTabTitle(tab.url)}</span>
     </Button>
-    <Button aria-label={`Close ${tab.title || "tab"}`} size="xsmall" onPress={onClose}><Icon name="close" /></Button>
+    <button className="tab-close" style={{ color: contentColor }} type="button" aria-label={`Close ${tab.title || "tab"}`} onClick={onClose}><Icon name="close" /></button>
   </div>
 }
 
-function Navigation({ application, tab }: Readonly<{ application: Application, tab: TabSnapshot | null }>) {
+function Navigation({ addressRef, application, tab }: Readonly<{ addressRef: RefObject<HTMLInputElement | null>, application: Application, tab: TabSnapshot | null }>) {
   const [address, setAddress] = useState(tab?.url === "about:blank" ? "" : tab?.url ?? "")
 
   useEffect(() => {
@@ -125,6 +141,7 @@ function Navigation({ application, tab }: Readonly<{ application: Application, t
       </Toolbar.Group>
       <form className="address-form" onSubmit={navigate}>
         <Input
+          ref={addressRef}
           aria-label="Address and search"
           placeholder="Search or enter an address"
           size="small"
@@ -139,15 +156,18 @@ function Navigation({ application, tab }: Readonly<{ application: Application, t
   </Surface>
 }
 
-function PageViewport({ application, frame, onViewport, tab }: Readonly<{
+function PageViewport({ application, frame, onFocusAddress, onNewTab, onNewWorkspace, onViewport, tab }: Readonly<{
   application: Application
   frame: TabObservationFrame | null
   onViewport: (viewport: Viewport) => void
+  onFocusAddress: () => void
+  onNewTab: () => void
+  onNewWorkspace: () => void
   tab: TabSnapshot | null
 }>) {
   const stage = useRef<HTMLDivElement>(null)
-  const image = useRef<HTMLImageElement>(null)
-  const frameURL = useFrameURL(frame)
+  const canvas = useRef<HTMLCanvasElement>(null)
+  const [painted, setPainted] = useState<Readonly<{ observation: string, tab: string }> | null>(null)
 
   useEffect(() => {
     const element = stage.current
@@ -163,7 +183,41 @@ function PageViewport({ application, frame, onViewport, tab }: Readonly<{
     return () => observer.disconnect()
   }, [application, onViewport, tab?.id])
 
-  const point = (event: PointerEvent<HTMLImageElement>) => {
+  useEffect(() => {
+    const element = canvas.current
+    if (!element || !frame || !tab || frame.tab !== tab.id) {
+      setPainted(null)
+      return
+    }
+
+    let current = true
+    const bytes = frame.data.slice()
+    void createImageBitmap(new Blob([bytes.buffer], { type: frame.mimeType })).then(bitmap => {
+      if (!current) {
+        bitmap.close()
+        return
+      }
+
+      const context = element.getContext("2d")
+      if (!context) throw new Error("Canvas rendering is unavailable for the Flambo Tab")
+      element.width = frame.viewport.width
+      element.height = frame.viewport.height
+      context.drawImage(bitmap, 0, 0, element.width, element.height)
+      bitmap.close()
+      setPainted({ observation: frame.observation, tab: frame.tab })
+      application.acknowledge(frame)
+    }).catch(error => {
+      if (!current) return
+      // A malformed frame is consumed even though it cannot be displayed;
+      // otherwise acknowledgement backpressure would permanently stall the stream.
+      application.acknowledge(frame)
+      application.fail(error)
+    })
+
+    return () => { current = false }
+  }, [application, frame, tab?.id])
+
+  const point = (event: PointerEvent<HTMLCanvasElement>) => {
     if (!frame) return null
     const bounds = event.currentTarget.getBoundingClientRect()
     return {
@@ -172,30 +226,30 @@ function PageViewport({ application, frame, onViewport, tab }: Readonly<{
     }
   }
 
-  const pointer = (event: PointerEvent<HTMLImageElement>) => {
+  const pointer = (event: PointerEvent<HTMLCanvasElement>) => {
     if (!tab || event.button > 2) return
     const position = point(event)
     if (!position) return
-    image.current?.focus()
+    canvas.current?.focus()
     const button = event.button === 1 ? "middle" : event.button === 2 ? "right" : "left"
     void application.click(tab.id, position.x, position.y, button).catch(error => application.fail(error))
     event.preventDefault()
   }
 
-  const movePointer = (event: PointerEvent<HTMLImageElement>) => {
+  const movePointer = (event: PointerEvent<HTMLCanvasElement>) => {
     if (!tab) return
     const position = point(event)
     if (!position) return
     void application.movePointer(tab.id, position.x, position.y).catch(error => application.fail(error))
   }
 
-  const wheel = (event: WheelEvent<HTMLImageElement>) => {
+  const wheel = (event: WheelEvent<HTMLCanvasElement>) => {
     if (!tab) return
     void application.wheel(tab.id, event.deltaX, event.deltaY).catch(error => application.fail(error))
     event.preventDefault()
   }
 
-  const key = (event: KeyboardEvent<HTMLImageElement>) => {
+  const key = (event: KeyboardEvent<HTMLCanvasElement>) => {
     if (!tab) return
     const modifiers = [
       event.altKey && "Alt",
@@ -210,41 +264,50 @@ function PageViewport({ application, frame, onViewport, tab }: Readonly<{
     event.preventDefault()
   }
 
-  return <Surface ref={stage} className="page-viewport" color="background:base" material="none" radius="none" shadow={false}>
-    {!tab ? <EmptyPage title="No open tabs" detail="Open a tab to begin browsing." />
-      : !frameURL || frame?.tab !== tab.id
-        ? <div className="page-loading"><ProgressBar aria-label="Loading page" indeterminate size="small" /></div>
-        : <img
-          ref={image}
+  const displaying = !!frame && painted?.observation === frame.observation && painted.tab === tab?.id
+
+  // This host remains stable while the Tab moves between local chrome and a
+  // remote page. The viewport observer must never remain attached to a root
+  // that React replaced during the first navigation.
+  return <div ref={stage} className="page-viewport">
+    {tab?.url === "about:blank"
+      ? <WelcomePage onFocusAddress={onFocusAddress} onNewTab={onNewTab} onNewWorkspace={onNewWorkspace} />
+      : <Surface className="page-surface" color="background:base" material="none" radius="none" shadow={false}>
+        {!tab && <EmptyPage title="No open tabs" detail="Open a tab to begin browsing." />}
+        {tab && <canvas
+          ref={canvas}
           className="page-frame"
-          src={frameURL}
-          alt={`Rendered page: ${tab.title || tab.url}`}
-          draggable={false}
+          aria-label={`Rendered page: ${tab.title || tab.url}`}
+          role="img"
           tabIndex={0}
-          onLoad={() => frame && application.acknowledge(frame)}
-          onError={() => frame && application.acknowledge(frame)}
+          hidden={!displaying}
           onPointerDown={pointer}
           onPointerMove={movePointer}
           onWheel={wheel}
           onKeyDown={key}
           onContextMenu={event => event.preventDefault()}
         />}
-  </Surface>
+      </Surface>}
+  </div>
 }
 
-function useFrameURL(frame: TabObservationFrame | null) {
-  const [url, setURL] = useState<string | null>(null)
-  useEffect(() => {
-    if (!frame) {
-      setURL(null)
-      return
-    }
-    const bytes = frame.data.slice()
-    const next = URL.createObjectURL(new Blob([bytes.buffer], { type: frame.mimeType }))
-    setURL(next)
-    return () => URL.revokeObjectURL(next)
-  }, [frame])
-  return url
+function WelcomePage({ onFocusAddress, onNewTab, onNewWorkspace }: Readonly<{
+  onFocusAddress: () => void
+  onNewTab: () => void
+  onNewWorkspace: () => void
+}>) {
+  return <div className="welcome-page">
+    <img className="welcome-icon" src={flamboIcon} alt="" />
+    <div className="welcome-copy">
+      <h1>Welcome to Flambo</h1>
+      <p>Search or enter an address to start browsing.</p>
+    </div>
+    <Toolbar aria-label="Flambo shortcuts" className="welcome-shortcuts" gap="xsmall">
+      <Button color="primary:soft" size="small" onPress={onFocusAddress}>Address bar</Button>
+      <Button size="small" onPress={onNewTab}><Icon name="plus" />New tab</Button>
+      <Button size="small" onPress={onNewWorkspace}><Icon name="workspace" />New workspace</Button>
+    </Toolbar>
+  </div>
 }
 
 function EmptyPage({ detail, title }: Readonly<{ detail: string, title: string }>) {

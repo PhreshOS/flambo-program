@@ -1,7 +1,7 @@
 {
     "name": "flambo-program",
     "private": true,
-    "version": "0.1.51",
+    "version": "0.1.52",
     "description": "Flambo is a shared browser for people and agents on PhreshOS.",
     "type": "module",
     "scripts": {
@@ -24,7 +24,7 @@
         "@phreshos/client": "^0.1.50",
         "@phreshos/core": "^0.1.59",
         "@phreshos/react": "^0.1.31",
-        "@phreshos/react-ui": "^0.1.33",
+        "@phreshos/react-ui": "^0.1.34",
         "@phreshos/server": "^0.1.55",
         "playwright": "^1.63.0",
         "react": "^19.2.8",

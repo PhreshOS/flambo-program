@@ -1,6 +1,8 @@
-import { chromium, type Browser, type BrowserContext as PlaywrightContext, type CDPSession, type Disposable, type Page } from "playwright"
+import { chromium, type Browser, type BrowserContext as PlaywrightContext, type Disposable, type Page, type Request } from "playwright"
 import type { BrowserContext, BrowserEngine, BrowserFrame, BrowserPage } from "./browser-engine"
-import type { KeyModifiers, PointerButton, Viewport } from "../../shared/flambo"
+import { maximumViewportDimension, type KeyModifiers, type PointerButton, type Viewport } from "../../shared/flambo"
+
+const frameQuality = 90
 
 /** Chromium implementation of the browser domain's execution contract. */
 export default class ChromiumEngine implements BrowserEngine {
@@ -34,7 +36,7 @@ class ChromiumContext implements BrowserContext {
 
     try {
       await page.setViewportSize(viewport)
-      return new ChromiumPage(page, await this.context.newCDPSession(page))
+      return new ChromiumPage(this.context, page)
     } catch (error) {
       await page.close().catch(() => undefined)
       throw error
@@ -47,18 +49,50 @@ class ChromiumContext implements BrowserContext {
 class ChromiumPage implements BrowserPage {
   private readonly frameListeners = new Set<(frame: BrowserFrame) => unknown>()
   private readonly stateListeners = new Set<() => unknown>()
+  private readonly loadingListeners = new Set<(loading: boolean) => unknown>()
   private screencast: Promise<Disposable> | null = null
+  private activeNavigation: Request | null = null
+  private loading = false
+  private favicon: string | null = null
+  private faviconGeneration = 0
+  private faviconLoading: Promise<void> | null = null
   private readonly stateChanged = () => {
     for (const listener of this.stateListeners) listener()
   }
   private readonly frameNavigated = (frame: ReturnType<Page["mainFrame"]>) => {
-    if (frame === this.page.mainFrame()) this.stateChanged()
+    if (frame !== this.page.mainFrame()) return
+    // History API navigation also emits framenavigated, but it keeps the same
+    // document and its favicon. Only a document navigation may invalidate it.
+    this.stateChanged()
+  }
+  private readonly contentLoaded = () => {
+    this.stateChanged()
+    void this.refreshFavicon()
+  }
+  private readonly navigationStarted = (request: Request) => {
+    if (!request.isNavigationRequest() || request.frame() !== this.page.mainFrame()) return
+    this.activeNavigation = request
+    this.resetFavicon()
+    this.setLoading(true)
+  }
+  private readonly navigationFailed = (request: Request) => {
+    if (request !== this.activeNavigation) return
+    this.activeNavigation = null
+    this.setLoading(false)
+  }
+  private readonly navigationLoaded = () => {
+    this.activeNavigation = null
+    this.setLoading(false)
+    this.stateChanged()
+    void this.refreshFavicon()
   }
 
-  public constructor(private readonly page: Page, private readonly session: CDPSession) {
+  public constructor(private readonly context: PlaywrightContext, private readonly page: Page) {
     page.on("framenavigated", this.frameNavigated)
-    page.on("domcontentloaded", this.stateChanged)
-    page.on("load", this.stateChanged)
+    page.on("domcontentloaded", this.contentLoaded)
+    page.on("request", this.navigationStarted)
+    page.on("requestfailed", this.navigationFailed)
+    page.on("load", this.navigationLoaded)
   }
 
   public async state() {
@@ -66,13 +100,23 @@ class ChromiumPage implements BrowserPage {
     if (!viewport) throw new Error("Chromium returned no viewport for the Flambo Tab")
     // Chromium's navigation history is authoritative for both back and forward;
     // deriving only from URLs cannot distinguish a forward entry after going back.
-    const [title, history] = await Promise.all([
-      this.page.title(),
-      this.session.send("Page.getNavigationHistory")
-    ])
+    const history = await (async () => {
+      const session = await this.context.newCDPSession(this.page)
+      try {
+        // A CDP session is attached to the page target that exists at that
+        // moment. Keeping it for the Tab lifetime lets a later target handoff
+        // turn every history read into "Not attached to an active page".
+        return await session.send("Page.getNavigationHistory")
+      } finally {
+        await session.detach().catch(() => undefined)
+      }
+    })()
+    const title = await this.page.title()
     return {
       url: this.page.url(),
       title,
+      favicon: this.favicon,
+      loading: this.loading,
       canGoBack: history.currentIndex > 0,
       canGoForward: history.currentIndex < history.entries.length - 1,
       viewport
@@ -80,12 +124,17 @@ class ChromiumPage implements BrowserPage {
   }
 
   public async capture() {
-    return new Uint8Array(await this.page.screenshot({ type: "jpeg", quality: 80 }))
+    return new Uint8Array(await this.page.screenshot({ type: "jpeg", quality: frameQuality }))
   }
 
   public observeState(listener: () => unknown) {
     this.stateListeners.add(listener)
     return () => { this.stateListeners.delete(listener) }
+  }
+
+  public observeLoading(listener: (loading: boolean) => unknown) {
+    this.loadingListeners.add(listener)
+    return () => { this.loadingListeners.delete(listener) }
   }
 
   public async observeFrames(listener: (frame: BrowserFrame) => unknown) {
@@ -101,10 +150,22 @@ class ChromiumPage implements BrowserPage {
     }
   }
 
-  public async navigate(url: string) { await this.page.goto(url, { waitUntil: "domcontentloaded" }) }
-  public async back() { await this.page.goBack({ waitUntil: "domcontentloaded" }) }
-  public async forward() { await this.page.goForward({ waitUntil: "domcontentloaded" }) }
-  public async reload() { await this.page.reload({ waitUntil: "domcontentloaded" }) }
+  public async navigate(url: string) {
+    this.resetFavicon()
+    await this.page.goto(url, { waitUntil: "domcontentloaded" })
+  }
+  public async back() {
+    this.resetFavicon()
+    await this.page.goBack({ waitUntil: "domcontentloaded" })
+  }
+  public async forward() {
+    this.resetFavicon()
+    await this.page.goForward({ waitUntil: "domcontentloaded" })
+  }
+  public async reload() {
+    this.resetFavicon()
+    await this.page.reload({ waitUntil: "domcontentloaded" })
+  }
   public async resize(viewport: Viewport) { await this.page.setViewportSize(viewport) }
   public async movePointer(x: number, y: number) { await this.page.mouse.move(x, y) }
   public async click(x: number, y: number, button: PointerButton) { await this.page.mouse.click(x, y, { button }) }
@@ -116,17 +177,78 @@ class ChromiumPage implements BrowserPage {
   public async close() {
     this.frameListeners.clear()
     this.stateListeners.clear()
+    this.loadingListeners.clear()
     this.page.off("framenavigated", this.frameNavigated)
-    this.page.off("domcontentloaded", this.stateChanged)
-    this.page.off("load", this.stateChanged)
+    this.page.off("domcontentloaded", this.contentLoaded)
+    this.page.off("request", this.navigationStarted)
+    this.page.off("requestfailed", this.navigationFailed)
+    this.page.off("load", this.navigationLoaded)
     await this.stopScreencast()
-    await this.session.detach().catch(() => undefined)
     await this.page.close()
+  }
+
+  private setLoading(loading: boolean) {
+    if (this.loading === loading) return
+    this.loading = loading
+    for (const listener of this.loadingListeners) listener(loading)
+  }
+
+  private resetFavicon() {
+    this.faviconGeneration += 1
+    this.favicon = null
+    this.faviconLoading = null
+  }
+
+  private refreshFavicon() {
+    if (this.faviconLoading) return this.faviconLoading
+    const generation = this.faviconGeneration
+    const loading = this.readFavicon().then(favicon => {
+      if (generation !== this.faviconGeneration || favicon === this.favicon) return
+      this.favicon = favicon
+      this.stateChanged()
+    }).catch(() => undefined).finally(() => {
+      if (this.faviconLoading === loading) this.faviconLoading = null
+    })
+    this.faviconLoading = loading
+    return loading
+  }
+
+  private async readFavicon() {
+    const candidates = await this.page.evaluate(() => {
+      const declared = [...document.querySelectorAll<HTMLLinkElement>("link[rel]")]
+        .find(link => link.rel.toLowerCase().split(/\s+/).includes("icon"))?.href
+      const location = new URL(document.location.href)
+      const fallback = location.protocol === "http:" || location.protocol === "https:"
+        ? new URL("/favicon.ico", location).href
+        : null
+      return [...new Set([declared, fallback].filter((value): value is string => !!value))]
+    })
+
+    for (const candidate of candidates) {
+      if (candidate.startsWith("data:image/")) return candidate
+      if (!candidate.startsWith("http://") && !candidate.startsWith("https://")) continue
+      try {
+        const response = await this.context.request.get(candidate, { failOnStatusCode: false, timeout: 5_000 })
+        if (!response.ok()) continue
+        const mimeType = response.headers()["content-type"]?.split(";", 1)[0]?.trim()
+        if (!mimeType?.startsWith("image/")) continue
+        const data = await response.body()
+        if (data.byteLength > 1_048_576) continue
+        return `data:${mimeType};base64,${data.toString("base64")}`
+      } catch {
+        continue
+      }
+    }
+    return null
   }
 
   private async startScreencast() {
     this.screencast ??= this.page.screencast.start({
-      quality: 80,
+      // Playwright otherwise caps the longest frame edge at 800 pixels. The
+      // domain maximum is only an upper bound; Chromium keeps smaller pages at
+      // their native viewport size and therefore preserves resize fidelity.
+      size: { width: maximumViewportDimension, height: maximumViewportDimension },
+      quality: frameQuality,
       onFrame: frame => {
         const value = Object.freeze({
           viewport: Object.freeze({ width: frame.viewportWidth, height: frame.viewportHeight }),

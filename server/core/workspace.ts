@@ -6,6 +6,7 @@ type Tab = {
   readonly id: string
   readonly page: BrowserPage
   releaseState: () => void
+  releaseLoading: () => void
   state: TabSnapshot
 }
 
@@ -34,13 +35,14 @@ export default class Workspace {
 
       try {
         const state = freezeTab({ id, ...await page.state() })
-        const tab: Tab = { id, page, state, releaseState: () => undefined }
+        const tab: Tab = { id, page, state, releaseState: () => undefined, releaseLoading: () => undefined }
         this.tabs.set(id, tab)
         // Page-originated redirects and navigations enter the same serialized
         // Workspace revision path as explicit Flambo operations.
         tab.releaseState = page.observeState(() => {
           void this.refreshTab(id).catch(() => undefined)
         })
+        tab.releaseLoading = page.observeLoading(loading => this.reflectLoading(id, loading))
         this.activeTab = id
         return state
       } catch (error) {
@@ -58,6 +60,7 @@ export default class Workspace {
 
       this.tabs.delete(id)
       tab.releaseState()
+      tab.releaseLoading()
       if (this.activeTab === id) this.activeTab = ids[index + 1] ?? ids[index - 1] ?? null
       await tab.page.close()
     })
@@ -141,7 +144,10 @@ export default class Workspace {
     const tabs = [...this.tabs.values()]
     this.tabs.clear()
     this.activeTab = null
-    for (const tab of tabs) tab.releaseState()
+    for (const tab of tabs) {
+      tab.releaseState()
+      tab.releaseLoading()
+    }
     await Promise.allSettled(tabs.map(tab => tab.page.close()))
     await this.context.close()
     this.listeners.clear()
@@ -176,6 +182,19 @@ export default class Workspace {
       const tab = this.requireTab(id)
       tab.state = freezeTab({ id, ...await tab.page.state() })
     })
+  }
+
+  private reflectLoading(id: string, loading: boolean) {
+    const tab = this.tabs.get(id)
+    if (!tab || tab.state.loading === loading) return
+
+    // Navigation can begin while a click or address-bar operation still owns
+    // the Workspace queue. Publishing this independent page fact immediately
+    // prevents that operation from hiding its own loading lifetime.
+    tab.state = freezeTab({ ...tab.state, loading })
+    this.revision += 1
+    const snapshot = this.current()
+    for (const listener of this.listeners) listener(snapshot)
   }
 
   private schedule<Result>(operation: () => Promise<Result> | Result): Promise<Result> {

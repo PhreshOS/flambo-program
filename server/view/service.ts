@@ -36,11 +36,15 @@ export function serve(application: Application, boundary: ServiceBoundary = cont
     closeMissingObservations(observations, event)
   })
 
-  answer(boundary, "workspace.attach", async (_payload, message) => {
-    return (await application.attachClient(await messageClient(message))).snapshot()
+  answer(boundary, "workspace.attach", async (payload, message) => {
+    const request = requests.workspaceStart.parse(payload)
+    return (await application.attachClient(await messageClient(message), request.viewport)).snapshot()
   })
   answer(boundary, "workspace.list", async () => application.listWorkspaces())
-  answer(boundary, "workspace.create", async () => (await application.createWorkspace()).snapshot())
+  answer(boundary, "workspace.create", async payload => {
+    const request = requests.workspaceStart.parse(payload)
+    return (await application.createWorkspace(request.viewport)).snapshot()
+  })
   answer(boundary, "workspace.read", async payload => application.workspace(requests.workspace.parse(payload).workspace).snapshot())
   answer(boundary, "workspace.close", async payload => {
     await application.closeWorkspace(requests.workspace.parse(payload).workspace)
@@ -52,7 +56,7 @@ export function serve(application: Application, boundary: ServiceBoundary = cont
   })
   answer(boundary, "tab.close", async payload => {
     const request = requests.tab.parse(payload)
-    await application.workspace(request.workspace).closeTab(request.tab)
+    await application.closeTab(request.workspace, request.tab)
     return null
   })
   answer(boundary, "tab.select", async payload => {

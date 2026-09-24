@@ -8,17 +8,34 @@ class API implements FlamboAPI {
   public readonly requests: Array<[keyof FlamboRequests, unknown]> = []
   public readonly pointerResolvers: Array<() => void> = []
   private readonly listeners = new Map<keyof FlamboServiceEvents, Set<(value: never) => unknown>>()
-  private revision = 0
+  private revision = 1
   private pointerObserved: (() => void) | null = null
-  private snapshot: WorkspaceSnapshot = Object.freeze({ id: "workspace", revision: 0, activeTab: null, tabs: [] })
-  private readonly workspaces = new Map<string, WorkspaceSnapshot>([[this.snapshot.id, this.snapshot]])
+  private snapshot: WorkspaceSnapshot
+  private readonly workspaces = new Map<string, WorkspaceSnapshot>()
+
+  public constructor(blank = false) {
+    const tab = Object.freeze({
+      id: "tab",
+      url: blank ? "about:blank" : "https://start.example/",
+      title: blank ? "" : "Start",
+      favicon: null,
+      loading: false,
+      canGoBack: false,
+      canGoForward: false,
+      viewport: { width: 800, height: 600 }
+    })
+    this.snapshot = Object.freeze({ id: "workspace", revision: 1, activeTab: tab.id, tabs: [tab] })
+    this.workspaces.set(this.snapshot.id, this.snapshot)
+  }
 
   public async request<Event extends keyof FlamboRequests>(event: Event, input: FlamboRequests[Event]["input"]): Promise<FlamboRequests[Event]["output"]> {
     this.requests.push([event, input])
     if (event === "workspace.attach") return this.snapshot as FlamboRequests[Event]["output"]
     if (event === "workspace.list") return [...this.workspaces.values()] as FlamboRequests[Event]["output"]
     if (event === "workspace.create") {
-      const workspace = Object.freeze({ id: `workspace-${this.workspaces.size + 1}`, revision: 0, activeTab: null, tabs: [] })
+      const viewport = (input as { viewport: { width: number, height: number } }).viewport
+      const tab = Object.freeze({ id: `tab-${this.workspaces.size + 1}`, url: "about:blank", title: "", favicon: null, loading: false, canGoBack: false, canGoForward: false, viewport })
+      const workspace = Object.freeze({ id: `workspace-${this.workspaces.size + 1}`, revision: 1, activeTab: tab.id, tabs: [tab] })
       this.workspaces.set(workspace.id, workspace)
       this.emit("workspace.changed", workspace)
       return workspace as FlamboRequests[Event]["output"]
@@ -29,7 +46,7 @@ class API implements FlamboAPI {
       return snapshot as FlamboRequests[Event]["output"]
     }
     if (event === "tab.create") {
-      const tab = Object.freeze({ id: "tab", url: "about:blank", title: "", canGoBack: false, canGoForward: false, viewport: { width: 800, height: 600 } })
+      const tab = Object.freeze({ id: "tab", url: "about:blank", title: "", favicon: null, loading: false, canGoBack: false, canGoForward: false, viewport: { width: 800, height: 600 } })
       this.snapshot = Object.freeze({ id: "workspace", revision: ++this.revision, activeTab: tab.id, tabs: [tab] })
       this.workspaces.set(this.snapshot.id, this.snapshot)
       this.emit("workspace.changed", this.snapshot)
@@ -93,10 +110,9 @@ test("Client subscribes before reading and reconciles the authoritative Workspac
   assert.equal(state.frame?.sequence, 1)
   assert.deepEqual(api.requests.map(([event]) => event), [
     "workspace.attach",
-    "tab.create",
-    "workspace.read",
     "tab.observe"
   ])
+  assert.deepEqual(api.requests[0]?.[1], { viewport: { width: 800, height: 600 } })
 
   api.emit("tab.frame", frame(2))
   application.acknowledge(application.snapshot().frame!)
@@ -119,7 +135,24 @@ test("Client initialization is one operation while the same document is opening"
 
   assert.equal(api.requests.filter(([event]) => event === "workspace.attach").length, 1)
   assert.equal(api.requests.filter(([event]) => event === "workspace.create").length, 0)
-  assert.equal(api.requests.filter(([event]) => event === "tab.create").length, 1)
+  assert.equal(api.requests.filter(([event]) => event === "tab.create").length, 0)
+  application.dispose()
+})
+
+test("Client starts page observation when a local welcome Tab first navigates", async () => {
+  const api = new API(true)
+  const application = new Application(api)
+  await application.start({ width: 800, height: 600 })
+
+  assert.equal(application.snapshot().workspace?.tabs[0]?.url, "about:blank")
+  assert.equal(application.snapshot().frame, null)
+  assert.deepEqual(api.requests.map(([event]) => event), [
+    "workspace.attach"
+  ])
+
+  await application.navigate("tab", "https://example.com/")
+  assert.equal(api.requests.filter(([event]) => event === "tab.observe").length, 1)
+  assert.equal(application.snapshot().frame?.sequence, 1)
   application.dispose()
 })
 
@@ -127,7 +160,7 @@ test("Creating another Workspace leaves this Client attached to its own Workspac
   const api = new API()
   const application = new Application(api)
   await application.start({ width: 800, height: 600 })
-  const other = await application.createWorkspace()
+  const other = await application.createWorkspace({ width: 1200, height: 700 })
 
   assert.notEqual(other.id, "workspace")
   assert.equal(application.snapshot().workspace?.id, "workspace")
