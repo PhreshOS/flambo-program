@@ -12,7 +12,6 @@ class API implements FlamboAPI {
   private pointerObserved: (() => void) | null = null
   private snapshot: WorkspaceSnapshot
   private readonly workspaces = new Map<string, WorkspaceSnapshot>()
-  public earlyFrame: TabObservationFrame | null = null
 
   public constructor(blank = false) {
     const tab = Object.freeze({
@@ -53,10 +52,7 @@ class API implements FlamboAPI {
       this.emit("workspace.changed", this.snapshot)
       return tab as FlamboRequests[Event]["output"]
     }
-    if (event === "tab.observe") {
-      if (this.earlyFrame) this.emit("tab.frame", this.earlyFrame)
-      return frame(1) as FlamboRequests[Event]["output"]
-    }
+    if (event === "tab.observe") return frame(1) as FlamboRequests[Event]["output"]
     if (event === "tab.movePointer") return await new Promise<FlamboRequests[Event]["output"]>(resolve => {
       this.pointerResolvers.push(() => resolve(this.snapshot as FlamboRequests[Event]["output"]))
       this.pointerObserved?.()
@@ -111,25 +107,17 @@ test("Client subscribes before reading and reconciles the authoritative Workspac
   const state = application.snapshot()
   assert.equal(state.status, "ready")
   assert.equal(state.workspace?.activeTab, "tab")
-  assert.equal(application.currentFrame()?.sequence, 1)
+  assert.equal(state.frame?.sequence, 1)
   assert.deepEqual(api.requests.map(([event]) => event), [
     "workspace.attach",
     "tab.observe"
   ])
   assert.deepEqual(api.requests[0]?.[1], { viewport: { width: 800, height: 600 } })
 
-  const received: number[] = []
-  let stateChanges = 0
-  const releaseState = application.subscribe(() => { stateChanges += 1 })
-  const release = application.subscribeFrame(value => { if (value) received.push(value.sequence) })
-  api.emit("tab.frame", frame(3))
   api.emit("tab.frame", frame(2))
-  assert.equal(application.currentFrame()?.sequence, 3)
-  assert.deepEqual(received, [1, 3])
-  assert.equal(stateChanges, 0)
-  assert.deepEqual(api.requests.map(([event]) => event), ["workspace.attach", "tab.observe"])
-  release()
-  releaseState()
+  application.acknowledge(application.snapshot().frame!)
+  assert.equal(application.snapshot().frame?.sequence, 2)
+  assert.equal(api.requests.at(-1)?.[0], "tab.acknowledge")
 
   await application.navigate("tab", "https://example.com/")
   assert.equal(application.snapshot().workspace?.tabs[0]?.url, "https://example.com/")
@@ -151,30 +139,20 @@ test("Client initialization is one operation while the same document is opening"
   application.dispose()
 })
 
-test("Client keeps the newest frame that arrives before the observation answer", async () => {
-  const api = new API()
-  api.earlyFrame = frame(2)
-  const application = new Application(api)
-  await application.start({ width: 800, height: 600 })
-
-  assert.equal(application.currentFrame()?.sequence, 2)
-  application.dispose()
-})
-
 test("Client starts page observation when a local welcome Tab first navigates", async () => {
   const api = new API(true)
   const application = new Application(api)
   await application.start({ width: 800, height: 600 })
 
   assert.equal(application.snapshot().workspace?.tabs[0]?.url, "about:blank")
-  assert.equal(application.currentFrame(), null)
+  assert.equal(application.snapshot().frame, null)
   assert.deepEqual(api.requests.map(([event]) => event), [
     "workspace.attach"
   ])
 
   await application.navigate("tab", "https://example.com/")
   assert.equal(api.requests.filter(([event]) => event === "tab.observe").length, 1)
-  assert.equal(application.currentFrame()?.sequence, 1)
+  assert.equal(application.snapshot().frame?.sequence, 1)
   application.dispose()
 })
 

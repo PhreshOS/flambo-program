@@ -4,7 +4,7 @@ export default defineConfig({
     identity: "flambo",
     name: "Flambo",
     description: "A shared browser for people and agents.",
-    version: "0.1.55",
+    version: "0.1.56",
     icon: "icon.png",
     categories: ["Internet"],
     keywords: ["browser", "web", "tabs", "workspace"],

@@ -15,19 +15,17 @@ export interface FlamboAPI {
 export type FlamboState = Readonly<{
   status: "connecting" | "ready" | "failed"
   workspace: WorkspaceSnapshot | null
+  frame: TabObservationFrame | null
   error: string | null
 }>
 
 /** Maintains one Client's live projection of an authoritative Workspace. */
 export default class Application {
-  private state: FlamboState = { status: "connecting", workspace: null, error: null }
+  private state: FlamboState = { status: "connecting", workspace: null, frame: null, error: null }
   private readonly listeners = new Set<() => void>()
-  private readonly frameListeners = new Set<(frame: TabObservationFrame | null) => void>()
   private readonly release: Array<() => void>
   private workspace: string | null = null
   private observation: string | null = null
-  private frame: TabObservationFrame | null = null
-  private earlyFrame: TabObservationFrame | null = null
   private observedTab: string | null = null
   private observationGeneration = 0
   private buffered: WorkspaceSnapshot[] | null = null
@@ -55,14 +53,6 @@ export default class Application {
   }
 
   public readonly snapshot = () => this.state
-
-  public readonly subscribeFrame = (listener: (frame: TabObservationFrame | null) => void) => {
-    this.frameListeners.add(listener)
-    listener(this.frame)
-    return () => { this.frameListeners.delete(listener) }
-  }
-
-  public readonly currentFrame = () => this.frame
 
   public start(viewport: Viewport = { width: 1024, height: 720 }): Promise<void> {
     if (this.loading) return this.loading
@@ -177,6 +167,14 @@ export default class Application {
     }))
   }
 
+  public acknowledge(frame: TabObservationFrame) {
+    if (frame.observation !== this.observation || this.state.frame !== frame) return
+    void this.api.request("tab.acknowledge", {
+      observation: frame.observation,
+      sequence: frame.sequence
+    }).catch(error => this.fail(error))
+  }
+
   public fail(error: unknown) {
     this.set({ status: "failed", error: error instanceof Error ? error.message : String(error) })
   }
@@ -191,7 +189,6 @@ export default class Application {
     if (observation) void this.api.request("tab.unobserve", { observation }).catch(() => undefined)
     for (const release of this.release) release()
     this.listeners.clear()
-    this.frameListeners.clear()
   }
 
   private async flushWheel(tab: string, queue: { deltaX: number, deltaY: number, running: Promise<TabSnapshot> | null }) {
@@ -243,8 +240,7 @@ export default class Application {
     if (snapshot.id !== this.workspace) return
     if (this.state.workspace && snapshot.revision < this.state.workspace.revision) return
     const active = snapshot.tabs.find(tab => tab.id === snapshot.activeTab)
-    this.set({ workspace: snapshot })
-    if (active?.url === "about:blank") this.setFrame(null)
+    this.set({ workspace: snapshot, ...(active?.url === "about:blank" ? { frame: null } : {}) })
     if (this.state.status === "ready") {
       void this.observeActiveTab().catch(error => this.fail(error))
     }
@@ -255,22 +251,15 @@ export default class Application {
     const tabs = workspace.tabs.map(current => current.id === tab.id ? tab : current)
     const snapshot = Object.freeze({ ...workspace, tabs: Object.freeze(tabs) })
     const active = snapshot.tabs.find(current => current.id === snapshot.activeTab)
-    this.set({ workspace: snapshot })
-    if (active?.url === "about:blank") this.setFrame(null)
+    this.set({ workspace: snapshot, ...(active?.url === "about:blank" ? { frame: null } : {}) })
     if (this.state.status === "ready") void this.observeActiveTab().catch(error => this.fail(error))
     return tab
   }
 
   private receiveFrame(frame: TabObservationFrame) {
-    if (frame.observation !== this.observation) {
-      // A screencast can beat the tab.observe answer through separate routes.
-      // Keep one newest early frame until the observation identity is known.
-      if (!this.observation && frame.tab === this.observedTab
-        && (!this.earlyFrame || this.earlyFrame.sequence < frame.sequence)) this.earlyFrame = frame
-      return
-    }
-    if (this.frame?.observation === frame.observation && this.frame.sequence >= frame.sequence) return
-    this.setFrame(frame)
+    if (frame.observation !== this.observation) return
+    if (this.state.frame?.observation === frame.observation && this.state.frame.sequence >= frame.sequence) return
+    this.set({ frame })
   }
 
   private async observeActiveTab() {
@@ -284,8 +273,7 @@ export default class Application {
     const previous = this.observation
     this.observation = null
     this.observedTab = tab
-    this.earlyFrame = null
-    this.setFrame(null)
+    this.set({ frame: null })
     if (previous) await this.api.request("tab.unobserve", { observation: previous }).catch(() => undefined)
     if (!tab || this.disposed || generation !== this.observationGeneration) return
 
@@ -299,7 +287,6 @@ export default class Application {
     }
     this.observation = frame.observation
     this.receiveFrame(frame)
-    this.receiveEarlyFrame(frame.observation)
   }
 
   private removeWorkspace(workspace: string) {
@@ -307,7 +294,7 @@ export default class Application {
 
     void this.releaseObservation()
     this.workspace = null
-    this.set({ workspace: null, status: "ready" })
+    this.set({ workspace: null, frame: null, status: "ready" })
   }
 
   private async releaseObservation() {
@@ -315,21 +302,7 @@ export default class Application {
     const observation = this.observation
     this.observation = null
     this.observedTab = null
-    this.earlyFrame = null
-    this.setFrame(null)
     if (observation) await this.api.request("tab.unobserve", { observation }).catch(() => undefined)
-  }
-
-  private setFrame(frame: TabObservationFrame | null) {
-    if (this.frame === frame) return
-    this.frame = frame
-    for (const listener of this.frameListeners) listener(frame)
-  }
-
-  private receiveEarlyFrame(observation: string) {
-    const early = this.earlyFrame
-    this.earlyFrame = null
-    if (early?.observation === observation) this.receiveFrame(early)
   }
 
   private requireWorkspace() {

@@ -1,18 +1,62 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent, type PointerEvent, type RefObject, type WheelEvent } from "react"
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent, type PointerEvent, type ReactNode, type RefObject, type WheelEvent } from "react"
 import { context, desktop, system } from "@phreshos/client"
 import { DesktopProvider, SystemProvider, useDesktopPreferences, useSystemAppearance, useWindowState } from "@phreshos/react"
 import { Button, Input, ProgressBar, Surface, Toolbar, UIProvider, Window, useContrastingColor } from "@phreshos/react-ui"
 import flamboIcon from "../icon.png"
 import Application from "./core/application"
 import type { TabObservationFrame, TabSnapshot, Viewport } from "../shared/flambo"
-import { resolveWorkspaceView, type WorkspaceView } from "./view/workspace-view"
+import { initialWorkspacePainted, resolveWorkspaceView, type WorkspaceView } from "./view/workspace-view"
+import Readiness, { useReadiness, useReady } from "./readiness"
+
+type Requirement = Readonly<{ message: string }>
+
+const systemRequirement = Object.freeze<Requirement>({ message: "Connecting to System…" })
+const desktopRequirement = Object.freeze<Requirement>({ message: "Connecting to Desktop…" })
+const workspaceRequirement = Object.freeze<Requirement>({ message: "Loading workspace…" })
+const frameRequirement = Object.freeze<Requirement>({ message: "Rendering workspace…" })
+const startupRequirements = Object.freeze([
+  systemRequirement,
+  desktopRequirement,
+  workspaceRequirement,
+  frameRequirement
+])
 
 export default function App({ application }: Readonly<{ application: Application }>) {
-  return <SystemProvider system={system} fallback={<Loading label="Connecting to System…" />}>
-    <DesktopProvider desktop={desktop} fallback={<Loading label="Connecting to Desktop…" />}>
-      <Theme application={application} />
-    </DesktopProvider>
-  </SystemProvider>
+  return <Readiness requirements={startupRequirements}>
+    <FlamboReadiness>
+      <SystemProvider system={system}>
+        <ReadyStage requirement={systemRequirement}>
+          <DesktopProvider desktop={desktop}>
+            <ReadyStage requirement={desktopRequirement}>
+              <Theme application={application} />
+            </ReadyStage>
+          </DesktopProvider>
+        </ReadyStage>
+      </SystemProvider>
+    </FlamboReadiness>
+  </Readiness>
+}
+
+function FlamboReadiness({ children }: Readonly<{ children: ReactNode }>) {
+  const { pending } = useReadiness<Requirement>()
+  const [revealed, setRevealed] = useState(false)
+
+  // Only the first workspace composition is gated; later navigation stays visible.
+  useLayoutEffect(() => {
+    if (pending.length === 0) setRevealed(true)
+  }, [pending])
+
+  return <div className="flambo-readiness-stage">
+    <div className="flambo-readiness-content" inert={!revealed} aria-hidden={!revealed} style={{ opacity: revealed ? 1 : 0 }}>
+      {children}
+    </div>
+    {!revealed && <div className="flambo-initial-loading"><Loading label={pending[0]?.message ?? "Loading workspace…"} /></div>}
+  </div>
+}
+
+function ReadyStage({ children, requirement }: Readonly<{ children: ReactNode, requirement: Requirement }>) {
+  useReady(requirement)
+  return children
 }
 
 function Theme({ application }: Readonly<{ application: Application }>) {
@@ -26,6 +70,14 @@ function FlamboWindow({ application }: Readonly<{ application: Application }>) {
   const workspace = state.workspace
   const view = resolveWorkspaceView(state)
   const active = view.phase === "tab" ? view.tab : null
+  const [initialPaint, setInitialPaint] = useState<Readonly<{ observation: string, tab: string }> | null>(null)
+  const onPainted = useCallback((frame: TabObservationFrame) => {
+    setInitialPaint(current => current?.observation === frame.observation && current.tab === frame.tab
+      ? current
+      : { observation: frame.observation, tab: frame.tab })
+  }, [])
+  const workspaceReady = state.status === "failed" || state.status === "ready" && workspace !== null
+  const frameReady = initialWorkspacePainted(state, initialPaint)
   const viewport = useRef<Viewport>({ width: 1024, height: 720 })
   const address = useRef<HTMLInputElement>(null)
   const rememberViewport = useCallback((value: Viewport) => { viewport.current = value }, [])
@@ -37,6 +89,8 @@ function FlamboWindow({ application }: Readonly<{ application: Application }>) {
   const close = async () => (await context.process()).exit()
 
   return <main className="flambo-shell">
+    {workspaceReady && <ReadyStage requirement={workspaceRequirement}>{null}</ReadyStage>}
+    {frameReady && <ReadyStage requirement={frameRequirement}>{null}</ReadyStage>}
     <Window.Header
       className="window-titlebar"
       active={window?.front ?? true}
@@ -73,6 +127,8 @@ function FlamboWindow({ application }: Readonly<{ application: Application }>) {
     <PageViewport
       application={application}
       view={view}
+      frame={state.frame}
+      onPainted={onPainted}
       onViewport={rememberViewport}
       onFocusAddress={() => address.current?.focus()}
       onNewTab={createTab}
@@ -157,16 +213,17 @@ function Navigation({ addressRef, application, tab }: Readonly<{ addressRef: Ref
   </Surface>
 }
 
-function PageViewport({ application, onFocusAddress, onNewTab, onNewWorkspace, onViewport, view }: Readonly<{
+function PageViewport({ application, frame, onFocusAddress, onNewTab, onNewWorkspace, onPainted, onViewport, view }: Readonly<{
   application: Application
+  frame: TabObservationFrame | null
   onViewport: (viewport: Viewport) => void
   onFocusAddress: () => void
   onNewTab: () => void
   onNewWorkspace: () => void
+  onPainted: (frame: TabObservationFrame) => void
   view: WorkspaceView
 }>) {
   const tab = view.phase === "tab" ? view.tab : null
-  const remote = tab !== null && tab.url !== "about:blank"
   const stage = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
   const [painted, setPainted] = useState<Readonly<{ observation: string, tab: string }> | null>(null)
@@ -186,79 +243,46 @@ function PageViewport({ application, onFocusAddress, onNewTab, onNewWorkspace, o
   }, [application, onViewport, tab?.id])
 
   useEffect(() => {
-    // The welcome Tab mounts no canvas; leaving it must establish the frame
-    // subscription even when the Tab identity itself does not change.
     const element = canvas.current
-    if (!element || !tab) {
+    if (!element || !frame || !tab || frame.tab !== tab.id) {
       setPainted(null)
       return
     }
 
-    let live = true
-    let decoding = false
-    let pending: TabObservationFrame | null = null
-    let observation: string | null = null
-    let displayed = false
-    const newest = () => pending
-    const draw = async () => {
-      if (!live || decoding || !pending) return
-      const frame = pending
-      pending = null
-      decoding = true
-      try {
-        const bytes = frame.data.slice()
-        const bitmap = await createImageBitmap(new Blob([bytes.buffer], { type: frame.mimeType }))
-        try {
-          const queued = newest()
-          if (!live || frame.observation !== observation
-            || queued?.observation === frame.observation && queued.sequence > frame.sequence) return
-          const context = element.getContext("2d")
-          if (!context) throw new Error("Canvas rendering is unavailable for the Flambo Tab")
-          if (element.width !== frame.viewport.width) element.width = frame.viewport.width
-          if (element.height !== frame.viewport.height) element.height = frame.viewport.height
-          context.drawImage(bitmap, 0, 0, element.width, element.height)
-          if (!displayed) {
-            displayed = true
-            setPainted({ observation: frame.observation, tab: frame.tab })
-          }
-        } finally {
-          bitmap.close()
-        }
-      } catch (error) {
-        if (live) application.fail(error)
-      } finally {
-        decoding = false
-        if (pending) void draw()
-      }
-    }
-
-    const release = application.subscribeFrame(frame => {
-      if (!frame || frame.tab !== tab.id) {
-        pending = null
-        observation = null
-        displayed = false
-        setPainted(null)
+    let current = true
+    const bytes = frame.data.slice()
+    void createImageBitmap(new Blob([bytes.buffer], { type: frame.mimeType })).then(bitmap => {
+      if (!current) {
+        bitmap.close()
         return
       }
-      if (frame.observation !== observation) {
-        observation = frame.observation
-        displayed = false
-        setPainted(null)
-      }
-      // Decoding may take longer than the frame interval; only the newest
-      // complete image is worth drawing when that happens.
-      pending = frame
-      void draw()
+
+      const context = element.getContext("2d")
+      if (!context) throw new Error("Canvas rendering is unavailable for the Flambo Tab")
+      element.width = frame.viewport.width
+      element.height = frame.viewport.height
+      context.drawImage(bitmap, 0, 0, element.width, element.height)
+      bitmap.close()
+      setPainted({ observation: frame.observation, tab: frame.tab })
+      onPainted(frame)
+      application.acknowledge(frame)
+    }).catch(error => {
+      if (!current) return
+      // A malformed frame is consumed even though it cannot be displayed;
+      // otherwise acknowledgement backpressure would permanently stall the stream.
+      application.acknowledge(frame)
+      application.fail(error)
     })
 
-    return () => { live = false; pending = null; release() }
-  }, [application, tab?.id, remote])
+    return () => { current = false }
+  }, [application, frame, onPainted, tab?.id])
 
   const point = (event: PointerEvent<HTMLCanvasElement>) => {
+    if (!frame) return null
     const bounds = event.currentTarget.getBoundingClientRect()
     return {
-      x: (event.clientX - bounds.left) * event.currentTarget.width / bounds.width,
-      y: (event.clientY - bounds.top) * event.currentTarget.height / bounds.height
+      x: (event.clientX - bounds.left) * frame.viewport.width / bounds.width,
+      y: (event.clientY - bounds.top) * frame.viewport.height / bounds.height
     }
   }
 
@@ -300,7 +324,7 @@ function PageViewport({ application, onFocusAddress, onNewTab, onNewWorkspace, o
     event.preventDefault()
   }
 
-  const displaying = painted?.tab === tab?.id
+  const displaying = !!frame && painted?.observation === frame.observation && painted.tab === tab?.id
 
   const content = (() => {
     switch (view.phase) {

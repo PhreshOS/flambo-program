@@ -66,6 +66,6 @@ Workspace and Tab identities returned by the Service rather than abbreviations.
 Pointer coordinates refer to the Tab viewport. `button` is `left`, `middle`, or
 `right`. Modifiers are any of `Alt`, `Control`, `Meta`, and `Shift`.
 
-The Flambo Client uses replaceable live frames internally. Agents that do not
+The Flambo Client uses acknowledged live frames internally. Agents that do not
 present a Client interface should use `tab.capture` when they need to inspect a
 Tab visually.

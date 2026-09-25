@@ -9,7 +9,6 @@ import type { TabFrame, TabObservationFrame } from "../../shared/flambo"
 import { requests, type FlamboRequests, type FlamboServiceEvents } from "../../shared/service"
 
 type Message = Readonly<{ payload: unknown, from?: Endpoint | null }>
-const frameInterval = 1000 / 30
 
 export interface ServiceBoundary {
   answer(event: string, handler: (message: Message) => unknown): void
@@ -86,10 +85,8 @@ export function serve(application: Application, boundary: ServiceBoundary = cont
       tab: request.tab,
       owner,
       sequence: 1,
-      starting: true,
-      lastPublishedAt: -Infinity,
+      inFlight: true,
       pending: null,
-      timer: null,
       releaseFrames: () => undefined,
       releaseOwner: () => undefined,
       closed: false
@@ -100,16 +97,22 @@ export function serve(application: Application, boundary: ServiceBoundary = cont
     observations.set(observation.id, observation)
 
     try {
-      const initial = observed(observation, await workspace.capture(request.tab))
-      // The screenshot is at least as fresh as paints observed while it was
-      // being captured; publishing those earlier paints would move backward.
-      observation.pending = null
-      observation.starting = false
-      return initial
+      return observed(observation, await workspace.capture(request.tab))
     } catch (error) {
       closeObservation(observations, observation)
       throw error
     }
+  })
+  answer(boundary, "tab.acknowledge", async (payload, message) => {
+    const request = requests.acknowledge.parse(payload)
+    const observation = requireObservation(observations, request.observation, message)
+    if (!observation.inFlight || request.sequence !== observation.sequence) {
+      throw new Error("The Flambo Tab frame acknowledgement is not current")
+    }
+
+    observation.inFlight = false
+    flushFrame(boundary, observation)
+    return null
   })
   answer(boundary, "tab.unobserve", async (payload, message) => {
     const request = requests.observation.parse(payload)
@@ -178,10 +181,8 @@ type Observation = {
   readonly tab: string
   readonly owner: Endpoint
   sequence: number
-  starting: boolean
-  lastPublishedAt: number
+  inFlight: boolean
   pending: BrowserFrame | null
-  timer: ReturnType<typeof setTimeout> | null
   releaseFrames: () => void
   releaseOwner: () => void
   closed: boolean
@@ -202,25 +203,16 @@ function requireObservation(observations: Map<string, Observation>, id: string, 
 
 function queueFrame(boundary: ServiceBoundary, observation: Observation, frame: BrowserFrame) {
   if (observation.closed) return
-  // A Tab frame is replaceable visual state: preserve the newest paint within
-  // each send interval without waiting for a round trip from the display.
+  // Retain only the newest undisplayed frame so a slow Client cannot build an unbounded transport queue.
   observation.pending = frame
   flushFrame(boundary, observation)
 }
 
 function flushFrame(boundary: ServiceBoundary, observation: Observation) {
-  if (observation.closed || observation.starting || observation.timer || !observation.pending) return
-  const remaining = frameInterval - (performance.now() - observation.lastPublishedAt)
-  if (remaining > 0) {
-    observation.timer = setTimeout(() => {
-      observation.timer = null
-      flushFrame(boundary, observation)
-    }, remaining)
-    return
-  }
+  if (observation.closed || observation.inFlight || !observation.pending) return
   const frame = observation.pending
   observation.pending = null
-  observation.lastPublishedAt = performance.now()
+  observation.inFlight = true
   observation.sequence += 1
   boundary.publish("tab.frame" satisfies keyof FlamboServiceEvents, observed(observation, frame))
 }
@@ -240,8 +232,6 @@ function closeObservation(observations: Map<string, Observation>, observation: O
   if (observation.closed) return
   observation.closed = true
   observations.delete(observation.id)
-  if (observation.timer) clearTimeout(observation.timer)
-  observation.timer = null
   observation.pending = null
   observation.releaseFrames()
   observation.releaseOwner()
