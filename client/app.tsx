@@ -73,7 +73,6 @@ function FlamboWindow({ application }: Readonly<{ application: Application }>) {
     <PageViewport
       application={application}
       view={view}
-      frame={state.frame}
       onViewport={rememberViewport}
       onFocusAddress={() => address.current?.focus()}
       onNewTab={createTab}
@@ -158,9 +157,8 @@ function Navigation({ addressRef, application, tab }: Readonly<{ addressRef: Ref
   </Surface>
 }
 
-function PageViewport({ application, frame, onFocusAddress, onNewTab, onNewWorkspace, onViewport, view }: Readonly<{
+function PageViewport({ application, onFocusAddress, onNewTab, onNewWorkspace, onViewport, view }: Readonly<{
   application: Application
-  frame: TabObservationFrame | null
   onViewport: (viewport: Viewport) => void
   onFocusAddress: () => void
   onNewTab: () => void
@@ -168,6 +166,7 @@ function PageViewport({ application, frame, onFocusAddress, onNewTab, onNewWorks
   view: WorkspaceView
 }>) {
   const tab = view.phase === "tab" ? view.tab : null
+  const remote = tab !== null && tab.url !== "about:blank"
   const stage = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
   const [painted, setPainted] = useState<Readonly<{ observation: string, tab: string }> | null>(null)
@@ -187,45 +186,79 @@ function PageViewport({ application, frame, onFocusAddress, onNewTab, onNewWorks
   }, [application, onViewport, tab?.id])
 
   useEffect(() => {
+    // The welcome Tab mounts no canvas; leaving it must establish the frame
+    // subscription even when the Tab identity itself does not change.
     const element = canvas.current
-    if (!element || !frame || !tab || frame.tab !== tab.id) {
+    if (!element || !tab) {
       setPainted(null)
       return
     }
 
-    let current = true
-    const bytes = frame.data.slice()
-    void createImageBitmap(new Blob([bytes.buffer], { type: frame.mimeType })).then(bitmap => {
-      if (!current) {
-        bitmap.close()
+    let live = true
+    let decoding = false
+    let pending: TabObservationFrame | null = null
+    let observation: string | null = null
+    let displayed = false
+    const newest = () => pending
+    const draw = async () => {
+      if (!live || decoding || !pending) return
+      const frame = pending
+      pending = null
+      decoding = true
+      try {
+        const bytes = frame.data.slice()
+        const bitmap = await createImageBitmap(new Blob([bytes.buffer], { type: frame.mimeType }))
+        try {
+          const queued = newest()
+          if (!live || frame.observation !== observation
+            || queued?.observation === frame.observation && queued.sequence > frame.sequence) return
+          const context = element.getContext("2d")
+          if (!context) throw new Error("Canvas rendering is unavailable for the Flambo Tab")
+          if (element.width !== frame.viewport.width) element.width = frame.viewport.width
+          if (element.height !== frame.viewport.height) element.height = frame.viewport.height
+          context.drawImage(bitmap, 0, 0, element.width, element.height)
+          if (!displayed) {
+            displayed = true
+            setPainted({ observation: frame.observation, tab: frame.tab })
+          }
+        } finally {
+          bitmap.close()
+        }
+      } catch (error) {
+        if (live) application.fail(error)
+      } finally {
+        decoding = false
+        if (pending) void draw()
+      }
+    }
+
+    const release = application.subscribeFrame(frame => {
+      if (!frame || frame.tab !== tab.id) {
+        pending = null
+        observation = null
+        displayed = false
+        setPainted(null)
         return
       }
-
-      const context = element.getContext("2d")
-      if (!context) throw new Error("Canvas rendering is unavailable for the Flambo Tab")
-      element.width = frame.viewport.width
-      element.height = frame.viewport.height
-      context.drawImage(bitmap, 0, 0, element.width, element.height)
-      bitmap.close()
-      setPainted({ observation: frame.observation, tab: frame.tab })
-      application.acknowledge(frame)
-    }).catch(error => {
-      if (!current) return
-      // A malformed frame is consumed even though it cannot be displayed;
-      // otherwise acknowledgement backpressure would permanently stall the stream.
-      application.acknowledge(frame)
-      application.fail(error)
+      if (frame.observation !== observation) {
+        observation = frame.observation
+        displayed = false
+        setPainted(null)
+      }
+      // Decoding may take longer than the frame interval; only the newest
+      // complete image is worth drawing when that happens.
+      pending = frame
+      void draw()
     })
 
-    return () => { current = false }
-  }, [application, frame, tab?.id])
+    return () => { live = false; pending = null; release() }
+  }, [application, tab?.id, remote])
 
   const point = (event: PointerEvent<HTMLCanvasElement>) => {
-    if (!frame) return null
     const bounds = event.currentTarget.getBoundingClientRect()
     return {
-      x: (event.clientX - bounds.left) * frame.viewport.width / bounds.width,
-      y: (event.clientY - bounds.top) * frame.viewport.height / bounds.height
+      x: (event.clientX - bounds.left) * event.currentTarget.width / bounds.width,
+      y: (event.clientY - bounds.top) * event.currentTarget.height / bounds.height
     }
   }
 
@@ -267,7 +300,7 @@ function PageViewport({ application, frame, onFocusAddress, onNewTab, onNewWorks
     event.preventDefault()
   }
 
-  const displaying = !!frame && painted?.observation === frame.observation && painted.tab === tab?.id
+  const displaying = painted?.tab === tab?.id
 
   const content = (() => {
     switch (view.phase) {

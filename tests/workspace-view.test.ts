@@ -16,7 +16,7 @@ const tab = Object.freeze({
 })
 
 function state(status: FlamboState["status"], workspace: WorkspaceSnapshot | null): FlamboState {
-  return Object.freeze({ status, workspace, frame: null, error: null })
+  return Object.freeze({ status, workspace, error: null })
 }
 
 test("Workspace view preserves loading until attachment establishes the snapshot", () => {

@@ -31,7 +31,6 @@ export type FlamboRequests = {
   "tab.reload": { input: TabRequest, output: TabSnapshot }
   "tab.capture": { input: TabRequest, output: TabFrame }
   "tab.observe": { input: TabRequest, output: TabObservationFrame }
-  "tab.acknowledge": { input: ObservationRequest & Readonly<{ sequence: number }>, output: null }
   "tab.unobserve": { input: ObservationRequest, output: null }
   "tab.resize": { input: TabRequest & Readonly<{ viewport: Viewport }>, output: TabSnapshot }
   "tab.movePointer": { input: TabRequest & Readonly<{ x: number, y: number }>, output: TabSnapshot }
@@ -79,6 +78,5 @@ export const requests = {
     key: z.string().min(1),
     modifiers: z.array(z.enum(["Alt", "Control", "Meta", "Shift"]))
   }),
-  observation,
-  acknowledge: observation.extend({ sequence: z.number().int().positive() })
+  observation
 } as const

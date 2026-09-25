@@ -11,6 +11,7 @@ class Page implements BrowserPage {
   private readonly stateListeners = new Set<() => unknown>()
   private readonly loadingListeners = new Set<(loading: boolean) => unknown>()
   private current: PageState
+  public beforeCapture: (() => void) | null = null
 
   public constructor(viewport: Viewport) {
     this.current = { url: "about:blank", title: "", favicon: null, loading: false, canGoBack: false, canGoForward: false, viewport }
@@ -19,7 +20,10 @@ class Page implements BrowserPage {
   public async state() { return this.current }
   public observeState(listener: () => unknown) { this.stateListeners.add(listener); return () => { this.stateListeners.delete(listener) } }
   public observeLoading(listener: (loading: boolean) => unknown) { this.loadingListeners.add(listener); return () => { this.loadingListeners.delete(listener) } }
-  public async capture() { return Uint8Array.from([0xff, 0xd8, 0xff, 0xd9]) }
+  public async capture() {
+    this.beforeCapture?.()
+    return Uint8Array.from([0xff, 0xd8, 0xff, 0xd9])
+  }
   public async observeFrames(listener: Parameters<BrowserPage["observeFrames"]>[0]) {
     this.frameListeners.add(listener)
     return () => { this.frameListeners.delete(listener) }
@@ -233,7 +237,7 @@ test("Closing the last Tab closes its Workspace through the service", async () =
   await assert.rejects(() => boundary.ask("workspace.read", { workspace: workspace.id }), /does not exist/)
 })
 
-test("Tab observation applies acknowledgement backpressure and releases with its Client", async () => {
+test("Tab observation publishes the latest paint at a bounded rate for the Client lifetime", async () => {
   const engine = new Engine()
   const boundary = new Boundary()
   serve(application(engine), boundary)
@@ -242,31 +246,27 @@ test("Tab observation applies acknowledgement backpressure and releases with its
     viewport: { width: 900, height: 600 }
   }) as { id: string, tabs: Array<{ id: string }> }
   const tab = workspace.tabs[0]!
+  const page = engine.contexts[0]!.pages[0]!
+  page.beforeCapture = () => { page.frame(1); page.frame(2) }
 
   const first = await boundary.ask("tab.observe", {
     workspace: workspace.id,
     tab: tab.id
   }, client.endpoint) as { observation: string, sequence: number, data: Uint8Array }
 
+  const published = () => boundary.publications.filter(([event]) => event === "tab.frame")
+    .map(([, value]) => value as { sequence: number, data: Uint8Array })
   assert.equal(first.sequence, 1)
-  engine.contexts[0]!.pages[0]!.frame(1)
-  engine.contexts[0]!.pages[0]!.frame(2)
-  assert.equal(boundary.publications.filter(([event]) => event === "tab.frame").length, 0)
-
-  await boundary.ask("tab.acknowledge", {
-    observation: first.observation,
-    sequence: first.sequence
-  }, client.endpoint)
-  const delivered = boundary.publications.find(([event]) => event === "tab.frame")?.[1] as {
-    sequence: number
-    data: Uint8Array
-  }
-  assert.equal(delivered.sequence, 2)
-  assert.deepEqual(delivered.data, Uint8Array.from([2]))
-
+  assert.equal(published().length, 0)
+  page.frame(3)
+  assert.deepEqual(published().map(value => [...value.data]), [[3]])
+  page.frame(4)
+  page.frame(5)
+  await new Promise(resolve => setTimeout(resolve, 60))
+  assert.deepEqual(published().map(value => [...value.data]), [[3], [5]])
+  assert.deepEqual(published().map(value => value.sequence), [2, 3])
   client.stop()
-  await assert.rejects(() => boundary.ask("tab.acknowledge", {
-    observation: first.observation,
-    sequence: delivered.sequence
-  }, client.endpoint), /does not exist/)
+  page.frame(6)
+  await new Promise(resolve => setTimeout(resolve, 60))
+  assert.deepEqual(published().map(value => [...value.data]), [[3], [5]])
 })

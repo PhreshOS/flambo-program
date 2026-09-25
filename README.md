@@ -42,9 +42,10 @@ the committed dependency graph without local package substitutions.
 One named Server Service owns the browser engine. Every Workspace has an
 isolated Chromium context and exactly one distinct Client Process; ending
 either lifetime ends the other. Every Tab is one page inside that context. A
-Client reattaches to its Workspace when its document reloads, then renders an
-acknowledged binary frame stream so slow displays cannot create an unbounded
-queue. Agent operations and human input mutate the same authoritative state.
+Client reattaches to its Workspace when its document reloads. Live JPEG frames
+are replaceable: Flambo retains the newest paint between publications and the
+Client skips stale frames when decoding falls behind. Agent operations and human
+input mutate the same authoritative state.
 
 ## Related repositories
 
