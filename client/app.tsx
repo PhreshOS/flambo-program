@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent, type PointerEvent, type ReactNode, type RefObject, type WheelEvent } from "react"
 import { context, desktop, system } from "@phreshos/client"
 import { DesktopProvider, SystemProvider, useDesktopPreferences, useSystemAppearance, useWindowState } from "@phreshos/react"
-import { Button, Input, ProgressBar, Surface, Toolbar, UIProvider, Window, useContrastingColor } from "@phreshos/react-ui"
+import { Button, Input, ProgressBar, Surface, Toolbar, UIProvider, Window, DocumentTheme, useContrastingColor } from "@phreshos/react-ui"
 import flamboIcon from "../icon.png"
 import Application from "./core/application"
 import type { TabObservationFrame, TabSnapshot, Viewport } from "../shared/flambo"
@@ -62,7 +62,7 @@ function ReadyStage({ children, requirement }: Readonly<{ children: ReactNode, r
 function Theme({ application }: Readonly<{ application: Application }>) {
   const appearance = useSystemAppearance()
   const preferences = useDesktopPreferences()
-  return <UIProvider appearance={appearance} preferences={preferences}><FlamboWindow application={application} /></UIProvider>
+  return <UIProvider appearance={appearance} preferences={preferences}><DocumentTheme /><FlamboWindow application={application} /></UIProvider>
 }
 
 function FlamboWindow({ application }: Readonly<{ application: Application }>) {
