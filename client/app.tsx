@@ -112,10 +112,10 @@ function FlamboWindow({ application }: Readonly<{ application: Application }>) {
             onClose={() => void application.closeTab(tab.id).catch(error => application.fail(error))}
           />)}
         </div>
-        <Button aria-label="New tab" size="xsmall" disabled={!workspace} onPress={createTab}><Icon name="plus" /></Button>
+        <Button iconOnly aria-label="New tab" size="xsmall" disabled={!workspace} onPress={createTab}><Icon name="plus" /></Button>
       </Window.Header.Center>
       <Window.Header.Actions>
-        <Window.Header.Action aria-label="New workspace" onPress={createWorkspace}><Icon name="workspace" /></Window.Header.Action>
+        <Window.Header.Action iconOnly aria-label="New workspace" onPress={createWorkspace}><Icon name="workspace" /></Window.Header.Action>
         <Window.Header.Minimize preventFocusOnPress={false} onPress={() => actOnWindow(() => context.window.minimize())} />
         <Window.Header.Maximize />
         <Window.Header.Close preventFocusOnPress={false} onPress={() => actOnWindow(close)} />
@@ -192,9 +192,9 @@ function Navigation({ addressRef, application, tab }: Readonly<{ addressRef: Ref
   return <Surface className="navigation" radius="none" shadow={false}>
     <Toolbar aria-label="Page navigation" gap="xsmall" style={{ width: "100%" }}>
       <Toolbar.Group gap="xsmall">
-        <Button aria-label="Back" size="small" disabled={!tab?.canGoBack} onPress={() => tab && act(() => application.back(tab.id))}><Icon name="back" /></Button>
-        <Button aria-label="Forward" size="small" disabled={!tab?.canGoForward} onPress={() => tab && act(() => application.forward(tab.id))}><Icon name="forward" /></Button>
-        <Button aria-label="Reload" size="small" disabled={!tab} onPress={() => tab && act(() => application.reload(tab.id))}><Icon name="reload" /></Button>
+        <Button iconOnly aria-label="Back" size="small" disabled={!tab?.canGoBack} onPress={() => tab && act(() => application.back(tab.id))}><Icon name="back" /></Button>
+        <Button iconOnly aria-label="Forward" size="small" disabled={!tab?.canGoForward} onPress={() => tab && act(() => application.forward(tab.id))}><Icon name="forward" /></Button>
+        <Button iconOnly aria-label="Reload" size="small" disabled={!tab} onPress={() => tab && act(() => application.reload(tab.id))}><Icon name="reload" /></Button>
       </Toolbar.Group>
       <form className="address-form" onSubmit={navigate}>
         <Input
