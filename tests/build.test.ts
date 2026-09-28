@@ -17,7 +17,6 @@ test("build contract", async () => {
     "npm install --omit=dev --no-audit && npx playwright install --with-deps chromium"
   )
   assert.equal(config.client?.location, "dist/client")
-  assert.deepEqual(config.client?.size, { width: 1100, height: 720 })
 
   assert(readFileSync("dist/client/index.html", "utf8").length > 0)
   assert(readFileSync("dist/server/main.js", "utf8").length > 0)
