@@ -7,7 +7,7 @@
       "dependencies": {
         "@fontsource/roboto": "^5.3.0",
         "@phreshos/client": "^0.1.54",
-        "@phreshos/core": "^0.1.64",
+        "@phreshos/core": "^0.1.65",
         "@phreshos/react": "^0.1.34",
         "@phreshos/react-ui": "^0.1.46",
         "@phreshos/server": "^0.1.55",
@@ -17,7 +17,7 @@
         "zod": "^4.6.5",
       },
       "devDependencies": {
-        "@phreshos/cli": "^0.1.70",
+        "@phreshos/cli": "^0.1.77",
         "@types/node": "^26.4.0",
         "@types/react": "^19.2.18",
         "@types/react-dom": "^19.2.5",
@@ -62,13 +62,13 @@
 
     "@oxc-project/types": ["@oxc-project/types@0.150.0", "", {}, "sha512-rDS5/31E9HfPl/CIzGrn0DOlvBbXFseQ5URJ9sYMfstbKLD/c6Gm9vmRzRGDdAXyOIL4zmO37lc9RIwYqVruZw=="],
 
-    "@phreshos/cli": ["@phreshos/cli@0.1.70", "", { "dependencies": { "@clack/prompts": "^1.7.0", "@phreshos/core": "^0.1.59", "@phreshos/node": "^0.1.32", "adm-zip": "^0.6.0", "commander": "^15.0.0", "picocolors": "^1.1.1" }, "bin": { "phresh": "dist/cli.js" } }, "sha512-blBZYhlpxnP93PdK4OGyPBVBItrd90pDcj2IYh+Z1Az2NhybchihdwYx23tST9I/H8crNq45WLgL6PuOdrHnmA=="],
+    "@phreshos/cli": ["@phreshos/cli@0.1.77", "", { "dependencies": { "@clack/prompts": "^1.7.0", "@phreshos/core": "^0.1.65", "@phreshos/node": "^0.1.36", "adm-zip": "^0.6.0", "commander": "^15.0.0", "picocolors": "^1.1.1" }, "bin": { "phresh": "dist/cli.js" } }, "sha512-yv/f62x2T2n2tLJY2dje59JFhd/tCxB70LM8/Lt3n47O9lUe7DqJOXRfaf08Gb01pf1Iui/OaCUgm6J2Wy1SJA=="],
 
     "@phreshos/client": ["@phreshos/client@0.1.54", "", { "dependencies": { "@the-link/messagepack": "^0.1.0" }, "peerDependencies": { "@phreshos/core": "^0.1.64" } }, "sha512-Yp6AHcCQdWYkBUxtC5qN69Vz+tga8YP5U5ofWVybwVz0ZzMrhxTtQ5YYMrehp03tNbrliK1ik6IGwnglK3tKww=="],
 
-    "@phreshos/core": ["@phreshos/core@0.1.64", "", { "dependencies": { "zod": "^4.6.5" } }, "sha512-c3wBWBHpDtTRCqrpsk1Iac1cQfUBeWm9xLlSBv1i4tJ0d1xQ5hIbOEq+a2qoO3kV3eOHYtBpYWUAeob+cMRsIA=="],
+    "@phreshos/core": ["@phreshos/core@0.1.65", "", { "dependencies": { "zod": "^4.6.5" } }, "sha512-MhKB8aKZJri8ICxuGwHmMD9TGCv2rerbORiWtB5YuZGtQ0Pza+MrPQ8QSlrOKjkoOIUdPKKr2qpgHIK2dNwVug=="],
 
-    "@phreshos/node": ["@phreshos/node@0.1.32", "", { "dependencies": { "@the-link/ipc": "^0.2.1", "@the-link/messagepack": "^0.1.0", "adm-zip": "^0.6.0", "jiti": "^2.7.0" }, "peerDependencies": { "@phreshos/core": "^0.1.59" } }, "sha512-es7R/fRQ2HSLPkWbioUAvJVRp4s52oDw2tde71oOpLOO1HmJbbeST4wxKL4feRBoU+O+iyMum373oUqwLJopIQ=="],
+    "@phreshos/node": ["@phreshos/node@0.1.36", "", { "dependencies": { "@the-link/ipc": "^0.2.1", "@the-link/messagepack": "^0.1.0", "adm-zip": "^0.6.0", "jiti": "^2.7.0" }, "peerDependencies": { "@phreshos/core": "^0.1.65" } }, "sha512-8+JMkFevUMUC3C7cZ4KhqtZ3tgVPa7Bqr66aNyJC6ySMVHitMieZB4Bzn7r+QYgrSQG7owGvyo6bWEh3UBCLQQ=="],
 
     "@phreshos/react": ["@phreshos/react@0.1.34", "", { "peerDependencies": { "@phreshos/core": "^0.1.64", "react": "^19.2.0" } }, "sha512-sOIFTTP6DFXgvssPSk0J85mtBgglzV3HzonnuWZxGu8GXWg2phAEUtBZkSzFTbs/VeCDCC3aQwDgF+Sed4s1Rw=="],
 
@@ -327,8 +327,6 @@
     "why-is-node-running": ["why-is-node-running@2.3.0", "", { "dependencies": { "siginfo": "^2.0.0", "stackback": "0.0.2" }, "bin": { "why-is-node-running": "cli.js" } }, "sha512-hUrmaWBdVDcxvYqnyh09zunKzROWjbZTiNy8dBEjkS7ehEDQibXJ7XvlmtbwuTclUiIyN+CyXQD4Vmko8fNm8w=="],
 
     "zod": ["zod@4.6.5", "", {}, "sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q=="],
-
-    "@phreshos/cli/@phreshos/core": ["@phreshos/core@0.1.59", "", { "dependencies": { "zod": "^4.6.5" } }, "sha512-/9qMUkCIw1qYKc/lDhzkcxpdvkCOmI00jdWoKkoBMGzB13PkN5My1zi0J8Veu2JX0j+h4zmJa5C+0JpQ4PDwmA=="],
 
     "@phreshos/react-ui/@phreshos/core": ["@phreshos/core@0.1.63", "", { "dependencies": { "zod": "^4.6.5" } }, "sha512-wzIRrjok93QJQb/cpm5A/PVRm50x6FTP4Agj2l8kUsg1rkrTLZAU/iX63DlQ02hrkYypM0aEfhbpuZJn9jpV3Q=="],
   }
