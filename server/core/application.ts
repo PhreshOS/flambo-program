@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto"
+import type { Position } from "@phreshos/core"
 import type { WorkspaceSnapshot } from "../../shared/flambo"
 import type { Viewport } from "../../shared/flambo"
 import type { BrowserEngine } from "./browser-engine"
@@ -13,7 +14,7 @@ export interface WorkspaceClient {
 }
 
 export interface WorkspaceClients {
-  readonly create: (workspace: string) => Promise<WorkspaceClient>
+  readonly create: (workspace: string, position?: Position) => Promise<WorkspaceClient>
 }
 
 export type ApplicationEvent =
@@ -36,12 +37,12 @@ export default class Application {
   ) {}
 
   /** Creates one Workspace and its distinct presenting Client. */
-  public async createWorkspace(viewport: Viewport) {
+  public async createWorkspace(viewport: Viewport, position?: Position) {
     return await this.scheduleLifecycle(async () => {
       const workspace = await this.createUnboundWorkspace(viewport)
 
       try {
-        this.bind(workspace, await this.clients.create(workspace.id))
+        this.bind(workspace, await this.clients.create(workspace.id, position))
         return workspace
       } catch (error) {
         await this.closeUnboundWorkspace(workspace)

@@ -5,6 +5,7 @@ export default defineConfig({
     name: "Flambo",
     description: "A shared browser for people and agents.",
     version: "0.1.62",
+    // Drawn from icon.svg: a flame of leaves, green at its heart and apricot at its tips.
     icon: "icon.png",
     categories: ["Internet"],
     keywords: ["browser", "web", "tabs", "workspace"],
@@ -24,6 +25,8 @@ export default defineConfig({
     client: {
         location: "dist/client",
         title: "Flambo",
+        // A browser shows pages made for wide screens, so it asks for room to show them.
+        size: { width: 1100, height: 700 },
         header: false,
         devCommand: "vite --config vite.client.ts"
     }

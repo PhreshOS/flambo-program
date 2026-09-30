@@ -17,11 +17,11 @@ export interface ServiceBoundary {
 
 export function workspaceClients(): WorkspaceClients {
   return {
-    async create(workspace) {
+    async create(workspace, position) {
       const program = await context.program()
       return processClient(await program.createProcess({
         server: false,
-        client: true,
+        client: position ? { position } : true,
         options: { workspace }
       }))
     }
@@ -42,8 +42,8 @@ export function serve(application: Application, boundary: ServiceBoundary = cont
   })
   answer(boundary, "workspace.list", async () => application.listWorkspaces())
   answer(boundary, "workspace.create", async payload => {
-    const request = requests.workspaceStart.parse(payload)
-    return (await application.createWorkspace(request.viewport)).snapshot()
+    const request = requests.workspaceCreate.parse(payload)
+    return (await application.createWorkspace(request.viewport, request.position)).snapshot()
   })
   answer(boundary, "workspace.read", async payload => application.workspace(requests.workspace.parse(payload).workspace).snapshot())
   answer(boundary, "workspace.close", async payload => {

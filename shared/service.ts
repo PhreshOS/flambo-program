@@ -19,7 +19,7 @@ export type FlamboServiceEvents = {
 export type FlamboRequests = {
   "workspace.attach": { input: WorkspaceStart, output: WorkspaceSnapshot }
   "workspace.list": { input: undefined, output: readonly WorkspaceSnapshot[] }
-  "workspace.create": { input: WorkspaceStart, output: WorkspaceSnapshot }
+  "workspace.create": { input: WorkspaceCreate, output: WorkspaceSnapshot }
   "workspace.read": { input: WorkspaceRequest, output: WorkspaceSnapshot }
   "workspace.close": { input: WorkspaceRequest, output: null }
   "tab.create": { input: WorkspaceRequest & Readonly<{ viewport: Viewport }>, output: TabSnapshot }
@@ -43,6 +43,7 @@ export type FlamboRequests = {
 
 export type WorkspaceRequest = Readonly<{ workspace: string }>
 export type WorkspaceStart = Readonly<{ viewport: Viewport }>
+export type WorkspaceCreate = WorkspaceStart & Readonly<{ position?: Readonly<{ x: number | string, y: number | string }> }>
 export type TabRequest = WorkspaceRequest & Readonly<{ tab: string }>
 export type ObservationRequest = Readonly<{ observation: string }>
 
@@ -61,6 +62,8 @@ const point = tab.extend({
 
 export const requests = {
   workspaceStart: z.object({ viewport }),
+  // A new Workspace opens where it is asked to, such as beside the window that asked for it.
+  workspaceCreate: z.object({ viewport, position: z.object({ x: z.union([z.number(), z.string()]), y: z.union([z.number(), z.string()]) }).optional() }),
   workspace,
   tab,
   tabCreate: workspace.extend({ viewport }),

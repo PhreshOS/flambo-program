@@ -1,3 +1,4 @@
+import { parseRelativeValue, type Position, type Value } from "@phreshos/core"
 import type { TabObservationFrame, TabSnapshot, Viewport, WorkspaceSnapshot } from "../../shared/flambo"
 import type { FlamboRequests, FlamboServiceEvents } from "../../shared/service"
 
@@ -34,7 +35,8 @@ export default class Application {
   private readonly wheelQueues = new Map<string, { deltaX: number, deltaY: number, running: Promise<TabSnapshot> | null }>()
   private readonly pointerQueues = new Map<string, { pending: Readonly<{ x: number, y: number }> | null, running: Promise<TabSnapshot> | null }>()
 
-  public constructor(private readonly api: FlamboAPI) {
+  /** `place` reads where this window is, so a new Workspace can open beside it. */
+  public constructor(private readonly api: FlamboAPI, private readonly place: () => Promise<Position> = () => Promise.reject(new Error("No window"))) {
     this.release = [
       api.subscribe("workspace.changed", snapshot => {
         this.buffered?.push(snapshot)
@@ -79,10 +81,13 @@ export default class Application {
     return loading
   }
 
-  public createWorkspace(viewport: Viewport) {
+  public async createWorkspace(viewport: Viewport) {
     // Creating another Workspace creates another Client; this Client keeps
-    // presenting the Workspace that defines its own lifetime.
-    return this.api.request("workspace.create", { viewport })
+    // presenting the Workspace that defines its own lifetime. The new one
+    // opens beside this window, a little down and to the right, as a new
+    // window of the same kind does.
+    const position = await this.place().then(nudged, () => undefined)
+    return this.api.request("workspace.create", { viewport, position })
   }
 
   public async createTab(viewport: Viewport) {
@@ -315,4 +320,21 @@ export default class Application {
     this.state = Object.freeze({ ...this.state, ...patch })
     for (const listener of this.listeners) listener()
   }
+}
+
+/** How far a new Workspace's window stands from the window that asked for it, in pixels. */
+const beside = 32
+
+/** A window position moved by `beside` pixels, whether it is written in pixels or as a share of the view. */
+function nudged(position: Position): Position {
+  return { x: nudge(position.x), y: nudge(position.y) }
+}
+
+function nudge(value: Value): Value {
+  const parsed = parseRelativeValue(value)
+  if (!parsed) return value
+  const pixels = parsed.pixels + beside
+  if (parsed.relative === 0) return pixels
+  const percent = Math.round(parsed.relative * 100 * 10000) / 10000
+  return `${percent}% ${pixels < 0 ? "-" : "+"} ${Math.abs(pixels)}`
 }

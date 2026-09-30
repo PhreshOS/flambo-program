@@ -1,4 +1,5 @@
 import { StrictMode } from "react"
+import { context } from "@phreshos/client"
 import client from "react-dom/client"
 import App from "./app"
 import Application from "./core/application"
@@ -9,7 +10,7 @@ const container = document.createElement("div")
 container.id = "root"
 document.body.append(container)
 const root = client.createRoot(container)
-const application = new Application(connect())
+const application = new Application(connect(), () => context.window.position())
 
 // The Flambo projection belongs to this iframe document, not to a React
 // mount. Strict Mode may replay component lifecycles, but it must not create a

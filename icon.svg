@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="1024" height="1024">
+    <!-- Flambo: a flame of leaves, green at its heart and apricot at its tips: a flambé that grows. -->
+    <defs>
+        <linearGradient id="outer" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#e5832f"/><stop offset=".6" stop-color="#f9b25c"/><stop offset="1" stop-color="#ffd48a"/></linearGradient>
+        <linearGradient id="inner" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#2f8f45"/><stop offset="1" stop-color="#bdeca8"/></linearGradient>
+    </defs>
+    <path d="M64 116c-26 0-40-18-36-40 3-16 16-26 22-44 2 12 8 18 14 22 4-14 12-28 26-38-4 16 2 28 10 40 8 12 10 24 6 34-5 16-20 26-42 26z" fill="url(#outer)"/>
+    <path d="M64 110c-14 0-22-10-20-22 2-9 9-14 13-24 2 8 6 12 10 14 3-9 8-16 16-22-2 10 1 17 5 24 4 7 5 14 3 19-3 7-12 11-27 11z" fill="url(#inner)"/>
+    <path d="M50 52c-6 10-12 18-14 28" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="3" stroke-linecap="round"/>
+</svg>
