@@ -23,9 +23,39 @@ export default function Screen({ tab, onDrawn }: Readonly<{ tab: string, onDrawn
     const onDrawnOf = useRef(onDrawn)
     onDrawnOf.current = onDrawn
     const { theme } = usePreferences()
+    /** Settles once the page has been given the well's size for the first time. */
+    const sized = useRef<Promise<void>>(Promise.resolve())
 
     // The page follows the Desktop's theme, as pages follow a system's own.
     useEffect(() => { void tabOf(tab).scheme(theme).catch(() => undefined) }, [tab, theme])
+
+    // The page takes the well's size, in CSS pixels, and the screen's pixel ratio, once it settles. Its
+    // first size is given before the video starts, so the first picture is already the right size.
+    useEffect(() => {
+        const current = tabOf(tab)
+        const host = well.current!
+        let timer: ReturnType<typeof setTimeout> | undefined
+        let last = ""
+        const apply = (): Promise<void> => {
+            const width = Math.max(1, Math.floor(host.clientWidth))
+            const height = Math.max(1, Math.floor(host.clientHeight))
+            const viewport = { width, height, scale: devicePixelRatio }
+            const key = JSON.stringify(viewport)
+            if (key === last) return Promise.resolve()
+            last = key
+            return current.resize(viewport).catch(() => undefined)
+        }
+        sized.current = apply()
+        const observer = new ResizeObserver(() => {
+            clearTimeout(timer)
+            timer = setTimeout(() => void apply(), resizeAfter)
+        })
+        observer.observe(host)
+        return () => {
+            observer.disconnect()
+            clearTimeout(timer)
+        }
+    }, [tab])
 
     // The video: decoded as it arrives and drawn at once, one device pixel to one screen pixel.
     useEffect(() => {
@@ -91,39 +121,12 @@ export default function Screen({ tab, onDrawn }: Readonly<{ tab: string, onDrawn
             decoder.decode(new EncodedVideoChunk({ type: piece.key ? "key" : "delta", timestamp: piece.timestamp, data: piece.data }))
         }
 
-        start()
+        void sized.current.then(() => { if (active) start() })
         return () => {
             active = false
             clearTimeout(acknowledgeTimer)
             stop?.()
             if (decoder.state !== "closed") decoder.close()
-        }
-    }, [tab])
-
-    // The page takes the well's size, in CSS pixels, and the screen's pixel ratio, once it settles.
-    useEffect(() => {
-        const current = tabOf(tab)
-        const host = well.current!
-        let timer: ReturnType<typeof setTimeout> | undefined
-        let last = ""
-        const apply = () => {
-            const width = Math.max(1, Math.floor(host.clientWidth))
-            const height = Math.max(1, Math.floor(host.clientHeight))
-            const viewport = { width, height, scale: devicePixelRatio }
-            const key = JSON.stringify(viewport)
-            if (key === last) return
-            last = key
-            void current.resize(viewport).catch(() => undefined)
-        }
-        apply()
-        const observer = new ResizeObserver(() => {
-            clearTimeout(timer)
-            timer = setTimeout(apply, resizeAfter)
-        })
-        observer.observe(host)
-        return () => {
-            observer.disconnect()
-            clearTimeout(timer)
         }
     }, [tab])
 
