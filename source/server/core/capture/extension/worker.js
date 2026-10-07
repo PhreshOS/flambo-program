@@ -38,7 +38,7 @@ async function perform(message) {
     if (message.type === "capture") {
         const streamId = await chrome.tabCapture.getMediaStreamId({ targetTabId: message.tab })
         await offscreen()
-        const result = await chrome.runtime.sendMessage({ to: "offscreen", type: "capture", streamId, url: message.url, width: message.width, height: message.height })
+        const result = await chrome.runtime.sendMessage({ to: "offscreen", type: "capture", streamId, url: message.url, width: message.width, height: message.height, codec: message.codec })
         if (result?.error) throw new Error(result.error)
         return null
     }
@@ -58,6 +58,11 @@ async function offscreen() {
         .finally(() => { creating = null })
     await creating
 }
+
+// The start page asks Flambo to go where its search field leads.
+chrome.runtime.onMessage.addListener((message, sender) => {
+    if (message.type === "navigate" && sender.tab) send({ type: "navigate", tab: sender.tab.id, text: message.text })
+})
 
 chrome.tabs.onUpdated.addListener((tab, _change, state) => send({
     type: "updated", tab, title: state.title ?? "", url: state.url ?? "", favicon: state.favIconUrl ?? null, loading: state.status === "loading"

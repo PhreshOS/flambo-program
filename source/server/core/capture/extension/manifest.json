@@ -2,7 +2,16 @@
     "manifest_version": 3,
     "name": "Flambo capture",
     "version": "1",
-    "description": "Gives Flambo's Server each tab's state and its picture as video.",
-    "permissions": ["tabCapture", "offscreen", "debugger", "tabs"],
-    "background": { "service_worker": "worker.js" }
+    "description": "Gives Flambo's Server each tab's state and its picture as video, and draws Flambo's start page.",
+    "permissions": [
+        "tabCapture",
+        "offscreen",
+        "debugger",
+        "tabs",
+        "topSites",
+        "favicon"
+    ],
+    "background": {
+        "service_worker": "worker.js"
+    }
 }

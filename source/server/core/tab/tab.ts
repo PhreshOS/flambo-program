@@ -58,11 +58,16 @@ export default class Tab {
     private history = { canGoBack: false, canGoForward: false }
     private ended = false
     private overlay: Promise<unknown> | null = null
+    private readonly startPage: string
 
     public constructor(private readonly opened: OpenedPage, capture: Capture) {
         this.video = new Video(capture, opened.tab, devicePixels(startingViewport), () => this.repaint(), piece => this.emit({ type: "video", piece }))
         void this.resize(startingViewport).catch(() => undefined)
-        this.stopReports = capture.follow(opened.tab, report => void this.reported(report))
+        this.startPage = capture.startPage
+        this.stopReports = capture.follow(opened.tab, {
+            report: report => void this.reported(report),
+            navigate: text => void this.navigate(text).catch(() => undefined)
+        })
         opened.page.on("close", () => this.end())
         // A page's own dialogs would stop it until answered; Flambo does not show them yet.
         opened.page.on("dialog", dialog => void dialog.dismiss().catch(() => undefined))
@@ -72,8 +77,15 @@ export default class Tab {
         return this.opened.page
     }
 
+    /** The tab as people see it: on the start page it has no address of its own, and is a new tab. */
     public description(): TabDescription {
-        return Object.freeze({ tab: this.identity, ...this.report, ...this.history })
+        const report = this.report.url === this.startPage ? { ...this.report, title: "New tab", url: "", favicon: null } : this.report
+        return Object.freeze({ tab: this.identity, ...report, ...this.history })
+    }
+
+    /** Shows Flambo's start page, as a new tab does. */
+    public async start() {
+        await this.page.goto(this.startPage, { waitUntil: "commit" })
     }
 
     public subscribe(listener: (event: TabEvent) => void) {
@@ -102,6 +114,11 @@ export default class Tab {
         const { width, height, scale } = viewport
         await this.opened.session.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: scale, mobile: false })
         this.video.resize(devicePixels(viewport))
+    }
+
+    /** Pages that offer light and dark choose by this, as they would by the system's own theme. */
+    public async scheme(theme: "light" | "dark") {
+        await this.opened.session.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value: theme }] })
     }
 
     public async pointer(input: PointerInput) {

@@ -70,6 +70,7 @@ export function tab(identity: string) {
         forward: () => ask<void>("tab.forward", payload),
         reload: () => ask<void>("tab.reload", payload),
         resize: (viewport: Viewport) => ask<void>("tab.resize", { ...payload, ...viewport }),
+        scheme: (theme: "light" | "dark") => ask<void>("tab.scheme", { ...payload, theme }),
         pointer: (input: PointerInput) => ask<void>("tab.pointer", { ...payload, input }),
         key: (input: KeyInput) => ask<void>("tab.key", { ...payload, input }),
         insert: (text: string) => ask<void>("tab.insert", { ...payload, text }),

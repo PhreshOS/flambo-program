@@ -32,7 +32,7 @@ export default class Browser {
             const worker = context.serviceWorkers().find(isExtension) ?? await context.waitForEvent("serviceworker", { predicate: isExtension, timeout: 15_000 })
             // A persistent profile opens with a blank page that no one asked for.
             for (const page of context.pages()) await page.close()
-            return new Browser(context, await Capture.connect(worker))
+            return new Browser(context, await Capture.connect(worker, extension))
         }
         catch (error) {
             await context.close()

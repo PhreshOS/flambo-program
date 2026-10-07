@@ -20,6 +20,7 @@ export const contract = {
     tab: z.object(tab),
     navigate: z.object({ ...tab, address: z.string().min(1).max(8192) }),
     resize: z.object({ ...tab, width: z.number().int().min(1).max(8192), height: z.number().int().min(1).max(8192), scale: z.number().min(0.5).max(4) }),
+    scheme: z.object({ ...tab, theme: z.enum(["light", "dark"]) }),
     pointer: z.object({ ...tab, input: pointer }),
     key: z.object({ ...tab, input: z.object({ type: z.enum(["down", "up"]), key: z.string().min(1).max(40) }) }),
     insert: z.object({ ...tab, text: z.string().max(1024 * 1024) }),

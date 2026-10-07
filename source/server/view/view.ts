@@ -69,6 +69,11 @@ export default async function view() {
         return tabs.get(tab).resize(viewport)
     })
 
+    context.answer("tab.scheme", ({ payload }) => {
+        const { tab, theme } = contract.scheme.parse(payload)
+        return tabs.get(tab).scheme(theme)
+    })
+
     context.answer("tab.pointer", ({ payload }) => {
         const { tab, input } = contract.pointer.parse(payload)
         return tabs.get(tab).pointer(input)

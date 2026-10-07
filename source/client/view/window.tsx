@@ -93,7 +93,7 @@ export default function FlamboWindow({ window: me }: Readonly<{ window: string }
                 <Window.Header.Close preventFocusOnPress={false} onPress={() => void context.process().then(process => process.exit())} />
             </Window.Header.Actions>
         </Window.Header>
-        {current && <Toolbar key={current.tab} tab={current} />}
+        {current && <Toolbar tab={current} />}
         {current ? <Screen key={current.tab} tab={current.tab} onDrawn={() => setDrawn(true)} /> : <div />}
     </div>
 }

@@ -7,7 +7,7 @@ const releases = new Map()
 
 chrome.runtime.onMessage.addListener((message, _sender, reply) => {
     if (message.to !== "offscreen") return
-    const done = message.type === "capture" ? capture(message.streamId, message.url, message.width, message.height)
+    const done = message.type === "capture" ? capture(message.streamId, message.url, message.width, message.height, message.codec)
         : message.type === "release" ? Promise.resolve(releases.get(message.url)?.())
         : null
     if (!done) return
@@ -15,7 +15,7 @@ chrome.runtime.onMessage.addListener((message, _sender, reply) => {
     return true
 })
 
-async function capture(streamId, url, width, height) {
+async function capture(streamId, url, width, height, codec) {
     // A tab is captured at exactly the size of its page in device pixels. Chromium keeps the size a
     // capture starts with, so a page that changes size is captured anew.
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -34,27 +34,41 @@ async function capture(streamId, url, width, height) {
         track.stop()
         socket.close()
     })
-    void encode(track, socket)
+    void encode(track, socket, codec)
 }
 
-/** How many bits a second each pixel may use; a still page uses far less, since nothing changes. */
-const bitsPerPixel = 3
-const largestBitrate = 20_000_000
+/**
+ * How much detail each picture keeps, from 0, everything, to 63: a moving page is sent lighter, and
+ * once it stands still for a moment its last picture is sent again, sharp.
+ */
+const movingQuantizer = 30
+const stillQuantizer = 4
+const stillAfter = 160
 
-async function encode(track, socket) {
+async function encode(track, socket, codec) {
     const reader = new MediaStreamTrackProcessor({ track }).readable.getReader()
     let encoder = null
     let size = ""
     let key = true
     // The newest picture, kept so a key piece can be made at once even while the page stays still
-    // and Chromium sends no new pictures.
+    // and Chromium sends no new pictures, and so it can be sent again sharp once the page is still.
     let last = null
-    socket.onmessage = event => {
-        if (event.data !== "key") return
-        if (last && encoder?.state === "configured") encoder.encode(last.clone(), { keyFrame: true })
-        else key = true
+    let sharp = false
+    let stillTimer
+    const sendSharp = keyFrame => {
+        if (!last || encoder?.state !== "configured") return false
+        // The encoder does not close what it is given; a copy left open holds one of the few pictures
+        // Chromium lends a capture, and once they are all held, the capture stops.
+        const copy = last.clone()
+        encoder.encode(copy, { keyFrame, vp9: { quantizer: stillQuantizer } })
+        copy.close()
+        sharp = true
+        return true
     }
-    socket.onclose = () => { last?.close(); track.stop(); void reader.cancel() }
+    socket.onmessage = event => {
+        if (event.data === "key" && !sendSharp(true)) key = true
+    }
+    socket.onclose = () => { clearTimeout(stillTimer); last?.close(); track.stop(); void reader.cancel() }
     for (;;) {
         const { value: frame, done } = await reader.read()
         if (done) break
@@ -65,16 +79,16 @@ async function encode(track, socket) {
             size = `${width}x${height}`
             if (encoder?.state === "configured") encoder.close()
             encoder = new VideoEncoder({ output: chunk => send(socket, chunk, width, height), error: () => socket.close() })
-            encoder.configure({
-                codec: "vp8", width, height, framerate: 60, latencyMode: "realtime", bitrateMode: "variable",
-                bitrate: Math.min(largestBitrate, width * height * bitsPerPixel)
-            })
+            encoder.configure({ codec, width, height, framerate: 60, latencyMode: "realtime", bitrateMode: "quantizer" })
             key = true
         }
-        encoder.encode(frame, { keyFrame: key })
+        encoder.encode(frame, { keyFrame: key, vp9: { quantizer: movingQuantizer } })
         key = false
         last?.close()
         last = frame
+        sharp = false
+        clearTimeout(stillTimer)
+        stillTimer = setTimeout(() => { if (!sharp) sendSharp(false) }, stillAfter)
     }
     if (encoder?.state === "configured") encoder.close()
 }

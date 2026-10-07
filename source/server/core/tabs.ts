@@ -46,10 +46,10 @@ export default class Tabs {
         return [...this.tabs.values()].map(tab => this.entry(tab))
     }
 
-    /** Opens a tab in a window, at an address or blank. */
+    /** Opens a tab in a window, at an address or on the start page. */
     public async create(window: string, address?: string) {
         const tab = await this.add(await this.browser.open(), window)
-        if (address) await tab.navigate(address)
+        await (address ? tab.navigate(address) : tab.start())
         return this.entry(tab)
     }
 

@@ -1,6 +1,7 @@
 import { tab as tabOf, type VideoPiece } from "@client/core/flambo"
-import { Surface } from "@phreshos/react-ui"
+import { Surface, usePreferences } from "@phreshos/react-ui"
 import { useEffect, useRef } from "react"
+import { videoCodec } from "@shared/video"
 import InputLine from "./input"
 
 /** How often a window tells the Server how far it has shown the video. */
@@ -21,6 +22,10 @@ export default function Screen({ tab, onDrawn }: Readonly<{ tab: string, onDrawn
     const canvas = useRef<HTMLCanvasElement>(null)
     const onDrawnOf = useRef(onDrawn)
     onDrawnOf.current = onDrawn
+    const { theme } = usePreferences()
+
+    // The page follows the Desktop's theme, as pages follow a system's own.
+    useEffect(() => { void tabOf(tab).scheme(theme).catch(() => undefined) }, [tab, theme])
 
     // The video: decoded as it arrives and drawn at once, one device pixel to one screen pixel.
     useEffect(() => {
@@ -61,7 +66,7 @@ export default function Screen({ tab, onDrawn }: Readonly<{ tab: string, onDrawn
 
         const start = () => {
             decoder = new VideoDecoder({ output: draw, error: () => { if (active) restart() } })
-            decoder.configure({ codec: "vp8", optimizeForLatency: true })
+            decoder.configure({ codec: videoCodec, optimizeForLatency: true })
             waitingForKey = true
             sequences.length = 0
             void current.watch(receive).then(
