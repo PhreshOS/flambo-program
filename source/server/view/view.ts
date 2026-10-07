@@ -5,6 +5,9 @@ import { videoEvent } from "@shared/events"
 import { addressOption } from "@shared/service"
 import { contract } from "./contract"
 
+/** How many of the sites visited most a new tab offers. */
+const sitesShown = 8
+
 /**
  * Flambo's Server: the browser and every tab, for every window and for agents. It answers questions
  * about tabs and announces two things: that the list changed, and each tab's video, under that tab's
@@ -39,6 +42,9 @@ export default async function view() {
     for (const window of await program.processes()) await firstTab(window).catch(() => undefined)
 
     context.answer("tabs.list", () => tabs.list())
+
+    // What a new tab offers: the places on the web visited most.
+    context.answer("sites.list", () => browser.sites(sitesShown))
 
     // Another Program, an agent, or anyone opens an address in Flambo: a new window, whose first tab
     // opens it. It stands where the asker places it, such as beside the window it was asked from.

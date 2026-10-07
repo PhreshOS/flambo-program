@@ -58,16 +58,11 @@ export default class Tab {
     private history = { canGoBack: false, canGoForward: false }
     private ended = false
     private overlay: Promise<unknown> | null = null
-    private readonly startPage: string
 
     public constructor(private readonly opened: OpenedPage, capture: Capture) {
         this.video = new Video(capture, opened.tab, devicePixels(startingViewport), () => this.repaint(), piece => this.emit({ type: "video", piece }))
         void this.resize(startingViewport).catch(() => undefined)
-        this.startPage = capture.startPage
-        this.stopReports = capture.follow(opened.tab, {
-            report: report => void this.reported(report),
-            navigate: text => void this.navigate(text).catch(() => undefined)
-        })
+        this.stopReports = capture.follow(opened.tab, report => void this.reported(report))
         opened.page.on("close", () => this.end())
         // A page's own dialogs would stop it until answered; Flambo does not show them yet.
         opened.page.on("dialog", dialog => void dialog.dismiss().catch(() => undefined))
@@ -77,15 +72,13 @@ export default class Tab {
         return this.opened.page
     }
 
-    /** The tab as people see it: on the start page it has no address of its own, and is a new tab. */
+    /**
+     * The tab as people see it. A blank page has no address of its own: it is a new tab, which a
+     * window shows by itself, without the page's picture.
+     */
     public description(): TabDescription {
-        const report = this.report.url === this.startPage ? { ...this.report, title: "New tab", url: "", favicon: null } : this.report
+        const report = this.report.url === "about:blank" ? { ...this.report, title: "", url: "", favicon: null } : this.report
         return Object.freeze({ tab: this.identity, ...report, ...this.history })
-    }
-
-    /** Shows Flambo's start page, as a new tab does. */
-    public async start() {
-        await this.page.goto(this.startPage, { waitUntil: "commit" })
     }
 
     public subscribe(listener: (event: TabEvent) => void) {

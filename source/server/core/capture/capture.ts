@@ -39,8 +39,8 @@ export type VideoChunk = Readonly<{ key: boolean, width: number, height: number,
 /** What Chromium itself says about a tab. */
 export type TabReport = Readonly<{ title: string, url: string, favicon: string | null, loading: boolean }>
 
-/** What a tab's own pages tell Flambo: its state, and, from the start page, where to go. */
-export type TabListener = Readonly<{ report(report: TabReport): void, navigate(text: string): void }>
+/** A place on the web visited often, with its icon as a data address, when Chromium has one. */
+export type Site = Readonly<{ url: string, title: string, icon: string | null }>
 
 /** How large a tab's picture is captured, in device pixels. */
 export type CaptureSize = Readonly<{ width: number, height: number }>
@@ -63,18 +63,18 @@ export default class Capture {
     private readonly token = randomBytes(24).toString("hex")
     private readonly replies = new Map<string, Pending>()
     private readonly streams = new Map<string, Readonly<{ receive(chunk: VideoChunk): void, opened(socket: WebSocket): void }>>()
-    private readonly listeners = new Map<number, TabListener>()
+    private readonly reports = new Map<number, (report: TabReport) => void>()
     private control: WebSocket | null = null
 
-    private constructor(private readonly server: WebSocketServer, private readonly extension: Extension) {
+    private constructor(private readonly server: WebSocketServer) {
         server.on("connection", (socket, request) => this.connected(socket, request.url ?? ""))
     }
 
     /** Opens the local socket and connects the extension running in Chromium to it. */
-    public static async connect(worker: Worker, extension: Extension) {
+    public static async connect(worker: Worker) {
         const server = new WebSocketServer({ host: "127.0.0.1", port: 0, maxPayload: 64 * 1024 * 1024 })
         await new Promise<void>((resolve, reject) => server.once("listening", resolve).once("error", reject))
-        const capture = new Capture(server, extension)
+        const capture = new Capture(server)
         await worker.evaluate(url => (self as unknown as { connect(url: string): Promise<void> }).connect(url), capture.address("control"))
         return capture
     }
@@ -84,15 +84,15 @@ export default class Capture {
         return await this.request("tab", { target }) as number
     }
 
-    /** Flambo's start page, which the extension draws. */
-    public get startPage() {
-        return `chrome-extension://${this.extension.identity}/start.html`
+    /** Follows what Chromium reports about one tab, until the returned function stops it. */
+    public follow(tab: number, report: (report: TabReport) => void) {
+        this.reports.set(tab, report)
+        return () => { this.reports.delete(tab) }
     }
 
-    /** Follows what one tab's pages tell Flambo, until the returned function stops it. */
-    public follow(tab: number, listener: TabListener) {
-        this.listeners.set(tab, listener)
-        return () => { this.listeners.delete(tab) }
+    /** The places on the web visited most, at most this many. */
+    public async sites(limit: number) {
+        return await this.request("sites", { limit }) as readonly Site[]
     }
 
     /** Starts capturing a tab at a size; its pieces arrive in order until the stream is closed. */
@@ -150,9 +150,8 @@ export default class Capture {
         }
         else if (message.type === "updated") {
             const { title, url, favicon, loading } = message as TabReport
-            this.listeners.get(message.tab as number)?.report({ title, url, favicon, loading })
+            this.reports.get(message.tab as number)?.({ title, url, favicon, loading })
         }
-        else if (message.type === "navigate") this.listeners.get(message.tab as number)?.navigate(message.text as string)
     }
 
     private request(type: string, values: Record<string, unknown>) {

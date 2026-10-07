@@ -42,6 +42,7 @@ async function perform(message) {
         if (result?.error) throw new Error(result.error)
         return null
     }
+    if (message.type === "sites") return await sites(message.limit)
     if (message.type === "release") {
         if (!(await chrome.offscreen.hasDocument())) return null
         const result = await chrome.runtime.sendMessage({ to: "offscreen", type: "release", url: message.url })
@@ -51,6 +52,24 @@ async function perform(message) {
     throw new Error(`Unknown request ${message.type}`)
 }
 
+/**
+ * The places on the web visited most, each with its icon as Chromium keeps it, written out in full so
+ * whoever shows it needs nothing from the extension.
+ */
+async function sites(limit) {
+    const visited = (await chrome.topSites.get()).filter(site => /^https?:/.test(site.url) && !site.url.startsWith("https://chromewebstore.google.com"))
+    return await Promise.all(visited.slice(0, limit).map(async site => ({ url: site.url, title: site.title || new URL(site.url).hostname, icon: await icon(site.url) })))
+}
+
+async function icon(page) {
+    const response = await fetch(chrome.runtime.getURL(`/_favicon/?pageUrl=${encodeURIComponent(page)}&size=32`))
+    if (!response.ok) return null
+    const bytes = new Uint8Array(await response.arrayBuffer())
+    let text = ""
+    for (const byte of bytes) text += String.fromCharCode(byte)
+    return `data:${response.headers.get("content-type") ?? "image/png"};base64,${btoa(text)}`
+}
+
 /** Captures run in one hidden document, the only place an extension may hold a media stream. */
 async function offscreen() {
     if (await chrome.offscreen.hasDocument()) return
@@ -58,11 +77,6 @@ async function offscreen() {
         .finally(() => { creating = null })
     await creating
 }
-
-// The start page asks Flambo to go where its search field leads.
-chrome.runtime.onMessage.addListener((message, sender) => {
-    if (message.type === "navigate" && sender.tab) send({ type: "navigate", tab: sender.tab.id, text: message.text })
-})
 
 chrome.tabs.onUpdated.addListener((tab, _change, state) => send({
     type: "updated", tab, title: state.title ?? "", url: state.url ?? "", favicon: state.favIconUrl ?? null, loading: state.status === "loading"

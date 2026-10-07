@@ -2,10 +2,11 @@ import { context } from "@phreshos/client"
 import type { Process, ServerEndpoint } from "@phreshos/core"
 import type { KeyInput, PointerInput, Viewport, VideoPiece } from "@server/core/tab/tab"
 import type { TabEntry } from "@server/core/tabs"
+import type { Site } from "@server/core/capture/capture"
 import { videoEvent } from "@shared/events"
 import { flamboService } from "@shared/service"
 
-export type { KeyInput, PointerInput, TabEntry, Viewport, VideoPiece }
+export type { KeyInput, PointerInput, Site, TabEntry, Viewport, VideoPiece }
 
 type Shared = Readonly<{ process: Process, server: ServerEndpoint }>
 
@@ -53,6 +54,11 @@ export function followTabs(follow: (tabs: readonly TabEntry[]) => void) {
     listFollowers.add(follow)
     void server().catch(() => undefined)
     return () => { listFollowers.delete(follow) }
+}
+
+/** The places on the web visited most, for a new tab to offer. */
+export function listSites() {
+    return ask<readonly Site[]>("sites.list")
 }
 
 /** Opens a tab in this window, at an address or blank. */

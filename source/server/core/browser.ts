@@ -32,7 +32,7 @@ export default class Browser {
             const worker = context.serviceWorkers().find(isExtension) ?? await context.waitForEvent("serviceworker", { predicate: isExtension, timeout: 15_000 })
             // A persistent profile opens with a blank page that no one asked for.
             for (const page of context.pages()) await page.close()
-            return new Browser(context, await Capture.connect(worker, extension))
+            return new Browser(context, await Capture.connect(worker))
         }
         catch (error) {
             await context.close()
@@ -50,6 +50,11 @@ export default class Browser {
         this.context.on("page", page => {
             void page.opener().then(async opener => { if (opener) popup(await this.opened(page), opener) }).catch(() => undefined)
         })
+    }
+
+    /** The places on the web visited most, at most this many, for a new tab to offer. */
+    public async sites(limit: number) {
+        return await this.capture.sites(limit)
     }
 
     public async close() {

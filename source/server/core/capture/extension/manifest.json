@@ -2,7 +2,7 @@
     "manifest_version": 3,
     "name": "Flambo capture",
     "version": "1",
-    "description": "Gives Flambo's Server each tab's state and its picture as video, and draws Flambo's start page.",
+    "description": "Gives Flambo's Server each tab's state, its picture as video, and the sites visited most.",
     "permissions": [
         "tabCapture",
         "offscreen",

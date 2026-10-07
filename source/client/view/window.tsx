@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react"
 import icon from "@/icon.png"
 import { useFirstArrival } from "./readiness"
 import Screen from "./screen/screen"
+import StartPage from "./start-page"
 import Toolbar from "./toolbar"
 
 /**
@@ -94,7 +95,10 @@ export default function FlamboWindow({ window: me }: Readonly<{ window: string }
             </Window.Header.Actions>
         </Window.Header>
         {current && <Toolbar tab={current} />}
-        {current ? <Screen key={current.tab} tab={current.tab} onDrawn={() => setDrawn(true)} /> : <div />}
+        {/* A new tab, blank in Chromium, is drawn here; any other page arrives as its picture. */}
+        {!current ? <div />
+            : current.url === "" ? <StartPage key={current.tab} tab={current.tab} onDrawn={() => setDrawn(true)} />
+                : <Screen key={current.tab} tab={current.tab} onDrawn={() => setDrawn(true)} />}
     </div>
 }
 
