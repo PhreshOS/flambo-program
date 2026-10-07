@@ -1,71 +1,72 @@
 # Flambo
 
-Flambo provides shared, server-owned web Workspaces. A Workspace owns an
-isolated browser context and an ordered collection of Tabs. People and agents
-that address the same Workspace operate on the same authoritative Tabs.
+Flambo is a browser on this machine. One Chromium runs in Flambo's Server;
+windows show its pages as live video and send input back. A tab belongs to the
+window that opened it, and closes when that window closes. A person and an
+agent working on the same tab see and change the same page.
 
-## Service
+Every tab lives in one Server: the Process named `flambo`, Server only, which
+is also the `flambo` Service. Flambo windows are Client-only Processes that
+reach it.
 
-Flambo's authority is the named Server Service at:
+Reach it with:
 
-```json
-{ "program": "flambo", "process": "flambo", "endpoint": "server" }
+```sh
+phresh endpoint ask --program flambo --process flambo --endpoint server --event tabs.list --json
 ```
 
-Find or create that Process with the Server enabled as a Service and the Client
-disabled. Flambo Clients use the same Service rather than starting a separate
-authority.
+When the Process is not running, find or create it with the Server enabled and
+the Client disabled. Never start another Server, and never give a window
+Process a Server.
 
-Every Workspace owns one distinct Client Process. `workspace.create` creates
-both, so an agent does not create or assign the Client separately. Ending the
-Workspace ends that Client Process, and ending the Client Process closes the
-Workspace. Reloading the Client document preserves both lifetimes.
+## Open a page
 
-## Workspaces
+`tab.open` `{ address?, position? }` opens a new Flambo window whose first tab
+goes to `address`, and returns `{ window }`. `position` is `{ x, y }` on the
+Desktop's plane; without it the System places the window. Prefer a window the
+owner can see, so they see what you do.
 
-| Event | Payload | Result |
+`address` is what a person would type in the address bar: an address with or
+without its scheme, or words, which are searched for.
+
+## Work in a tab
+
+1. `tabs.list` returns every tab: `{ tab, title, url, favicon, loading,
+   canGoBack, canGoForward, window }`. `window` is the identity of the window
+   Process the tab belongs to. A new tab, still blank, has `url` `""`.
+2. Read the page with `tab.text` `{ tab }`: the page as a tree of what it offers
+   people (headings, text, links, buttons, fields), in YAML.
+3. See it with `tab.picture` `{ tab }`: a JPEG of the page as it is.
+4. Act on it:
+
+| Event | Payload | Does |
 | --- | --- | --- |
-| `workspace.list` | none | `WorkspaceSnapshot[]` |
-| `workspace.create` | none | created `WorkspaceSnapshot`; opens its Client |
-| `workspace.read` | `{ workspace }` | current `WorkspaceSnapshot` |
-| `workspace.close` | `{ workspace }` | `null` |
+| `tab.navigate` | `{ tab, address }` | Goes to an address, or searches for words |
+| `tab.search` | `{ tab, text }` | Searches for the words, whatever they look like |
+| `tab.back` / `tab.forward` / `tab.reload` | `{ tab }` | Moves in the tab's history |
+| `tab.pointer` | `{ tab, input }` | Moves, presses, releases, or turns the wheel |
+| `tab.insert` | `{ tab, text }` | Types text into what has focus |
+| `tab.press` | `{ tab, keys }` | Presses a key or a combination |
+| `tab.create` | `{ window, address? }` | Opens another tab in a window |
+| `tab.close` | `{ tab }` | Closes the tab |
 
-A `WorkspaceSnapshot` contains `{ id, revision, activeTab, tabs }`.
-`workspace.changed` publishes each new authoritative snapshot, and
-`workspace.closed` publishes `{ workspace }` after closure. Subscribe before
-the initial read, retain the highest revision, and ignore older snapshots.
+`input` for `tab.pointer` is one of `{ type: "move", x, y }`, `{ type: "down" |
+"up", x, y, button, clickCount }`, or `{ type: "wheel", x, y, deltaX, deltaY }`.
+Points are CSS pixels from the page's top left corner; `button` is `left`,
+`middle`, or `right`. A click is a `down` then an `up` at the same point.
 
-## Tabs
+`keys` names keys as the DOM does, joined with `+`, such as `Enter`, `Tab`, or
+`ControlOrMeta+A`. `ControlOrMeta` is the key that holds shortcuts on the
+machine Flambo runs on.
 
-| Event | Payload | Result |
-| --- | --- | --- |
-| `tab.create` | `{ workspace, viewport: { width, height } }` | created `TabSnapshot` |
-| `tab.close` | `{ workspace, tab }` | `null` |
-| `tab.select` | `{ workspace, tab }` | `null` |
-| `tab.navigate` | `{ workspace, tab, url }` | current `TabSnapshot` |
-| `tab.back` | `{ workspace, tab }` | current `TabSnapshot` |
-| `tab.forward` | `{ workspace, tab }` | current `TabSnapshot` |
-| `tab.reload` | `{ workspace, tab }` | current `TabSnapshot` |
-| `tab.resize` | `{ workspace, tab, viewport }` | current `TabSnapshot` |
-| `tab.capture` | `{ workspace, tab }` | current JPEG `TabFrame` |
+## Publications
 
-`TabSnapshot` contains `{ id, url, title, canGoBack, canGoForward, viewport }`. `TabFrame` contains
-`{ tab, viewport, mimeType, data }`; `data` is binary JPEG data. Use complete
-Workspace and Tab identities returned by the Service rather than abbreviations.
+- `tabs.changed`: the whole list, whenever a tab opens, closes, or changes its
+  address, title, icon, or loading state.
 
-## Input
+`sites.list`, `tab.resize`, `tab.scheme`, `tab.key`, `tab.watch`,
+`tab.unwatch`, `tab.acknowledge`, and the `video.<tab>` publications belong to
+Flambo windows.
 
-| Event | Payload | Result |
-| --- | --- | --- |
-| `tab.movePointer` | `{ workspace, tab, x, y }` | current `TabSnapshot` |
-| `tab.click` | `{ workspace, tab, x, y, button }` | current `TabSnapshot` |
-| `tab.wheel` | `{ workspace, tab, deltaX, deltaY }` | current `TabSnapshot` |
-| `tab.type` | `{ workspace, tab, text }` | current `TabSnapshot` |
-| `tab.press` | `{ workspace, tab, key, modifiers }` | current `TabSnapshot` |
-
-Pointer coordinates refer to the Tab viewport. `button` is `left`, `middle`, or
-`right`. Modifiers are any of `Alt`, `Control`, `Meta`, and `Shift`.
-
-The Flambo Client uses acknowledged live frames internally. Agents that do not
-present a Client interface should use `tab.capture` when they need to inspect a
-Tab visually.
+Tabs live in the Server's memory: when it ends, every tab closes. What a person
+signs into stays, in Flambo's own browser profile.

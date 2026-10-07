@@ -1,16 +1,22 @@
 # Flambo
 
-A shared browser for people and agents on PhreshOS.
+A browser on the machine, shown as a live picture, for people and agents.
 
-[PhreshOS](https://phreshos.com) ·
-[Documentation](https://docs.phreshos.com) ·
+[Programs](https://phreshos.com/docs/program/programs) ·
+[Communication](https://phreshos.com/docs/program/communication) ·
 [Source](https://github.com/PhreshOS/flambo-program)
 
 ## Role
 
-Flambo provides authoritative Workspaces and Tabs that a person and an agent
-can observe and control together. The Server owns browser execution and the
-Client presents the same state through the PhreshOS Desktop.
+Flambo runs one Chromium in its Server, the `flambo` Service, and shows its
+pages in Flambo windows as live video. A tab belongs to the window that opened
+it and closes with it; a link that opens a new tab opens it in the same window.
+People and agents act on the same pages, and what a person signs into stays in
+Flambo's own browser profile.
+
+A new tab is blank in Chromium and drawn by the window itself: a greeting, a
+search field, and the sites visited most. Nothing is captured until the tab goes
+to a page.
 
 ## Development
 
@@ -28,9 +34,6 @@ bun run start
 bun run pack
 ```
 
-`verify` checks the source, builds both Endpoints, and validates the packaged
-Program shape.
-
 `check` performs static checks, `build` creates distributable output, and `test`
 runs Vitest assertions from `tests/`. Run `build` before testing built artifacts.
 `verify` runs `check`, `build`, and `test` in order. Operational tooling belongs
@@ -39,12 +42,22 @@ the committed dependency graph without local package substitutions.
 
 ## Architecture
 
-One named Server Service owns the browser engine. Every Workspace has an
-isolated Chromium context and exactly one distinct Client Process; ending
-either lifetime ends the other. Every Tab is one page inside that context. A
-Client reattaches to its Workspace when its document reloads, then renders an
-acknowledged binary frame stream so slow displays cannot create an unbounded
-queue. Agent operations and human input mutate the same authoritative state.
+Chromium loads a small extension that Flambo ships. Over a local socket only the
+Server knows, it names the tab behind each page, reports each tab's address,
+title, icon, and loading state, reads the sites visited most, and captures a
+tab as video while a window shows it.
+
+A watched tab is captured at its page's size in device pixels, so text is drawn
+sharp, and encoded as VP9 with WebCodecs: lighter while the page moves, and its
+last picture sent again in full detail once the page stands still. The window
+decodes the pieces onto a canvas and says how far it has shown them; a window
+that falls behind skips to a fresh key piece, so it shows the present, late,
+rather than the past, in order. A page that changes size is captured anew at
+its new size.
+
+Pointer, wheel, and keys go back to the page in the order they happened; moves
+and wheel turns that pile up while one is on its way are merged. Text pasted
+into a window is typed into the page.
 
 ## Related repositories
 

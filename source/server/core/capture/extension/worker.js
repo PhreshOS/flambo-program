@@ -52,12 +52,15 @@ async function perform(message) {
     throw new Error(`Unknown request ${message.type}`)
 }
 
+const webStore = /^https:\/\/(chromewebstore\.google\.com|chrome\.google\.com\/webstore)/
+
 /**
  * The places on the web visited most, each with its icon as Chromium keeps it, written out in full so
  * whoever shows it needs nothing from the extension.
  */
 async function sites(limit) {
-    const visited = (await chrome.topSites.get()).filter(site => /^https?:/.test(site.url) && !site.url.startsWith("https://chromewebstore.google.com"))
+    // Only places on the web someone went to; Chromium lists its own Web Store among them on its own.
+    const visited = (await chrome.topSites.get()).filter(site => /^https?:/.test(site.url) && !webStore.test(site.url))
     return await Promise.all(visited.slice(0, limit).map(async site => ({ url: site.url, title: site.title || new URL(site.url).hostname, icon: await icon(site.url) })))
 }
 
