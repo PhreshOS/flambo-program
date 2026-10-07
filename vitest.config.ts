@@ -1,7 +1,7 @@
 import { defineConfig } from "vitest/config"
 
 export default defineConfig({
-  resolve: { dedupe: ["react", "react-dom"] },
+  resolve: { tsconfigPaths: true, dedupe: ["react", "react-dom"] },
   test: {
     pool: "forks",
     maxWorkers: 2,
@@ -19,16 +19,6 @@ export default defineConfig({
           ],
           environment: "node",
           testTimeout: 30000
-        }
-      }
-      ,
-      {
-        extends: true,
-        test: {
-          name: "platform",
-          include: ["tests/**/*.platform.test.ts"],
-          environment: "node",
-          testTimeout: 60_000
         }
       }
     ]

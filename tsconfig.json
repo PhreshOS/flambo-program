@@ -1,17 +1,21 @@
 {
-    "compilerOptions": {
-        "moduleResolution": "bundler",
-        "noUnusedParameters": true,
-        "noUnusedLocals": true,
-        "skipLibCheck": true,
-        "module": "ESNext",
-        "target": "ESNext",
-        "jsx": "react-jsx",
-        "strict": true,
-        "noEmit": true,
-        "types": [
-            "@types/node",
-            "vite/client"
-        ]
+  "compilerOptions": {
+    "moduleResolution": "bundler",
+    "noUnusedParameters": true,
+    "noUnusedLocals": true,
+    "skipLibCheck": true,
+    "module": "ESNext",
+    "target": "ESNext",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "types": ["@types/node", "vite/client"],
+    "paths": {
+      "@/*": ["./*"],
+      "@client/*": ["./source/client/*"],
+      "@server/*": ["./source/server/*"],
+      "@libs/*": ["./source/libs/*"],
+      "@shared/*": ["./source/shared/*"]
     }
+  }
 }

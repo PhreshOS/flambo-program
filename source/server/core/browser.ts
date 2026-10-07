@@ -1,0 +1,65 @@
+import { chromium, type BrowserContext, type Page } from "playwright"
+import { join } from "node:path"
+import Capture, { placeExtension } from "./capture/capture"
+
+/** A page Chromium shows, with the tab it shows it in and a direct line to it. */
+export type OpenedPage = Readonly<{ page: Page, tab: number, session: Awaited<ReturnType<BrowserContext["newCDPSession"]>> }>
+
+/**
+ * Chromium on this machine, with the capture extension and a profile that keeps what a person signs
+ * into. Pages are given their size by Flambo, not by Playwright, so Chromium itself has none. Both the
+ * profile and the extension live in the folder Flambo is given.
+ */
+export default class Browser {
+    private constructor(private readonly context: BrowserContext, public readonly capture: Capture) {}
+
+    public static async launch(folder: string) {
+        const extension = await placeExtension(folder)
+        const context = await chromium.launchPersistentContext(join(folder, "profile"), {
+            channel: "chromium",
+            headless: true,
+            viewport: null,
+            args: [
+                `--disable-extensions-except=${extension.folder}`,
+                `--load-extension=${extension.folder}`,
+                // The extension captures tabs without a person choosing them, which this flag allows.
+                `--allowlisted-extension-id=${extension.identity}`,
+                "--auto-accept-this-tab-capture"
+            ]
+        })
+        try {
+            const isExtension = (worker: { url(): string }) => worker.url().startsWith(`chrome-extension://${extension.identity}/`)
+            const worker = context.serviceWorkers().find(isExtension) ?? await context.waitForEvent("serviceworker", { predicate: isExtension, timeout: 15_000 })
+            // A persistent profile opens with a blank page that no one asked for.
+            for (const page of context.pages()) await page.close()
+            return new Browser(context, await Capture.connect(worker))
+        }
+        catch (error) {
+            await context.close()
+            throw error
+        }
+    }
+
+    /** Opens a new page in its own tab. */
+    public async open(): Promise<OpenedPage> {
+        return await this.opened(await this.context.newPage())
+    }
+
+    /** Follows pages that pages open themselves, such as links that open in a new tab. */
+    public followPopups(popup: (opened: OpenedPage, opener: Page) => void) {
+        this.context.on("page", page => {
+            void page.opener().then(async opener => { if (opener) popup(await this.opened(page), opener) }).catch(() => undefined)
+        })
+    }
+
+    public async close() {
+        this.capture.close()
+        await this.context.close()
+    }
+
+    private async opened(page: Page): Promise<OpenedPage> {
+        const session = await this.context.newCDPSession(page)
+        const { targetInfo } = await session.send("Target.getTargetInfo")
+        return { page, session, tab: await this.capture.tab(targetInfo.targetId) }
+    }
+}

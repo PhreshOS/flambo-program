@@ -1,0 +1,37 @@
+:root {
+    background: transparent;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+}
+
+* { box-sizing: border-box; }
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: transparent;
+}
+
+/* The window: its own header, the way around the tab, and the page under them. */
+.flambo-window { display: grid; grid-template-rows: auto auto minmax(0, 1fr); height: 100%; min-width: 0; }
+
+.toolbar { display: grid; grid-template-columns: auto auto auto minmax(0, 1fr); align-items: center; gap: 0.25rem; padding: 0 0.5rem 0.5rem; }
+.address { min-width: 0; }
+.loading { animation: turning 0.9s linear infinite; }
+@keyframes turning { to { transform: rotate(360deg); } }
+
+/* The page: a recessed well, the picture filling it from its top left corner. */
+.screen { margin: 0 0.5rem 0.5rem; min-height: 0; border-radius: 10px; overflow: hidden; }
+.screen-page { display: block; outline: none; cursor: default; }
+
+.tab { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 0.4rem; flex: 1 1 auto; min-width: 0; }
+.tab-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: start; }
+.tab-close { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 4px; opacity: 0.45; cursor: pointer; }
+.tab-close:hover { opacity: 1; background: color-mix(in oklab, currentColor 12%, transparent); }
+.favicon { width: 14px; height: 14px; flex: none; }
+
+.problem { display: grid; place-content: center; justify-items: center; gap: 0.75rem; height: 100%; }
