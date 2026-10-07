@@ -34,8 +34,7 @@ body {
 .start-mark { width: 64px; height: 64px; }
 .start-search { width: min(36rem, 100%); }
 .start-sites { width: min(42rem, 100%); margin-top: 0.75rem; }
-.start-site { display: grid; justify-items: center; gap: 0.5rem; min-width: 0; }
-.start-site-icon { width: 1.75rem; height: 1.75rem; }
+.start-site { display: grid; justify-items: center; min-width: 0; text-align: center; }
 .start-site-title { width: 100%; overflow: hidden; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 .start-welcome { max-width: 26rem; text-align: center; }
 .start-note { display: grid; justify-items: center; gap: 0.5rem; }

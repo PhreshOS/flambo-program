@@ -66,6 +66,11 @@ export default async function view() {
         await tabs.get(tab).navigate(address)
     })
 
+    context.answer("tab.search", async ({ payload }) => {
+        const { tab, text } = contract.search.parse(payload)
+        await tabs.get(tab).search(text)
+    })
+
     context.answer("tab.back", ({ payload }) => tabs.get(contract.tab.parse(payload).tab).back())
     context.answer("tab.forward", ({ payload }) => tabs.get(contract.tab.parse(payload).tab).forward())
     context.answer("tab.reload", ({ payload }) => tabs.get(contract.tab.parse(payload).tab).reload())

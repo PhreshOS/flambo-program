@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto"
 import type { OpenedPage } from "../browser"
 import type Capture from "../capture/capture"
 import type { TabReport } from "../capture/capture"
+import { searchEngine } from "@shared/search"
 import Video, { type VideoPiece } from "./video"
 
 export type { VideoPiece }
@@ -42,8 +43,6 @@ export type TabEvent =
 /** The room a tab has until its window gives it its own. */
 const startingViewport: Viewport = { width: 1100, height: 640, scale: 1 }
 
-/** Where words typed in the address bar lead when they are not an address. */
-const search = "https://duckduckgo.com/?q="
 
 /**
  * One page in Chromium, as Flambo shows it: its state as Chromium reports it, its video while it is
@@ -89,6 +88,11 @@ export default class Tab {
     /** Goes to an address, or searches for the words when they are not one. */
     public async navigate(input: string) {
         await this.page.goto(destination(input), { waitUntil: "commit" })
+    }
+
+    /** Searches for the words with Flambo's search engine, whatever they look like. */
+    public async search(text: string) {
+        await this.page.goto(searchEngine.address + encodeURIComponent(text.trim()), { waitUntil: "commit" })
     }
 
     public async back() {
@@ -205,5 +209,5 @@ export function destination(input: string) {
     if (/^[a-z][a-z0-9+.-]*:/i.test(text) && !/^[^\s/]+:\d+(\/|$)/.test(text)) return text
     if (!/\s/.test(text) && (/^[^\s/]+\.[^\s/]+/.test(text) || /^localhost(:\d+)?(\/|$)/.test(text) || /^[^\s/]+:\d+(\/|$)/.test(text)))
         return `${/^(localhost|127\.|\[::1\])/.test(text) ? "http" : "https"}://${text}`
-    return search + encodeURIComponent(text)
+    return searchEngine.address + encodeURIComponent(text)
 }

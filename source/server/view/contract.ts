@@ -19,6 +19,7 @@ export const contract = {
     create: z.object({ window: identity, address: z.string().max(8192).optional() }),
     tab: z.object(tab),
     navigate: z.object({ ...tab, address: z.string().min(1).max(8192) }),
+    search: z.object({ ...tab, text: z.string().min(1).max(8192) }),
     resize: z.object({ ...tab, width: z.number().int().min(1).max(8192), height: z.number().int().min(1).max(8192), scale: z.number().min(0.5).max(4) }),
     scheme: z.object({ ...tab, theme: z.enum(["light", "dark"]) }),
     pointer: z.object({ ...tab, input: pointer }),

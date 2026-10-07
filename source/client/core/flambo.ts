@@ -72,6 +72,7 @@ export function tab(identity: string) {
     return {
         close: () => ask<void>("tab.close", payload),
         navigate: (address: string) => ask<void>("tab.navigate", { ...payload, address }),
+        search: (text: string) => ask<void>("tab.search", { ...payload, text }),
         back: () => ask<void>("tab.back", payload),
         forward: () => ask<void>("tab.forward", payload),
         reload: () => ask<void>("tab.reload", payload),
