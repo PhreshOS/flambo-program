@@ -4,7 +4,7 @@ export default defineConfig({
     identity: "flambo",
     name: "Flambo",
     description: "A browser on the machine, shown as a live picture, for people and agents.",
-    version: "0.2.0",
+    version: "0.3.0",
     // Drawn from icon.svg: a flame of leaves, green at its heart and apricot at its tips.
     icon: "icon.png",
     categories: ["Internet"],
