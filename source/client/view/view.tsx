@@ -1,7 +1,7 @@
 import { windowIdentity } from "@client/core/flambo"
 import usePromise from "@libs/react-promise"
 import { desktop, system } from "@phreshos/client"
-import { DesktopProvider, SystemProvider, useDesktopPreferences, useSystemAppearance } from "@phreshos/react"
+import { DesktopProvider, SystemProvider, useResolvedDesktopPreferences, useSystemAppearance } from "@phreshos/react"
 import { DocumentTheme, Loading, UIProvider } from "@phreshos/react-ui"
 import { Arrival } from "./readiness"
 import FlamboWindow from "./window"
@@ -21,7 +21,7 @@ export default function View() {
 
 function Themed() {
     const window = usePromise(() => windowIdentity, [])
-    return <UIProvider appearance={useSystemAppearance()} preferences={useDesktopPreferences()}>
+    return <UIProvider appearance={useSystemAppearance()} preferences={useResolvedDesktopPreferences()}>
         <DocumentTheme />
         <Loading>{window.solve ? <FlamboWindow window={window.solve} /> : <Arrival arrived={false} />}</Loading>
     </UIProvider>
