@@ -17,3 +17,5 @@ await build({ configFile: "vite.client.ts" })
 await writeFile("dist/server/package.json", JSON.stringify({ type: "module", dependencies }))
 // Chromium loads the capture extension from beside the Server, as files, not as part of its bundle.
 await cp("source/server/core/capture/extension", "dist/server/extension", { recursive: true })
+// The install command runs beside the Server too.
+await cp("source/server/install-browser.mjs", "dist/server/install-browser.mjs")

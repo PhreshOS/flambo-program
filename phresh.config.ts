@@ -19,8 +19,9 @@ export default defineConfig({
         start: false,
         service: true,
         worker: "main.js",
-        // Chromium is unusable on a clean Linux host unless its native libraries are installed with it.
-        installCommand: "npm install --omit=dev --no-audit && npx playwright install --with-deps chromium",
+        // Chromium comes with Flambo; on Linux its native libraries too, wherever they can be installed
+        // without a password (see install-browser.mjs).
+        installCommand: "npm install --omit=dev --no-audit && node install-browser.mjs",
         devCommand: "vite-node source/server/main.ts"
     },
     client: {
