@@ -34,9 +34,9 @@ export default async function view() {
     // Every window opens with a tab, at the address it was opened for, if any. The Server opens it,
     // so a window has its tab even before anyone looks at it, and windows that opened while no
     // Server ran get theirs when it starts.
-    const firstTab = async (window: { identity: string, options(name: string): Promise<string | undefined> }) => {
+    const firstTab = async (window: { identity: string, options: Readonly<Record<string, string>> }) => {
         if (window.identity === self.identity || tabs.list().some(tab => tab.window === window.identity)) return
-        await tabs.create(window.identity, await window.options(addressOption))
+        await tabs.create(window.identity, window.options[addressOption])
     }
     program.subscribe("processCreate", window => void firstTab(window).catch(() => undefined))
     for (const window of await program.processes()) await firstTab(window).catch(() => undefined)
