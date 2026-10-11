@@ -1,7 +1,7 @@
 import { createTab, followTabs, listTabs, tab as tabOf, type TabEntry } from "@client/core/flambo"
 import usePromise from "@libs/react-promise"
 import { context } from "@phreshos/client"
-import { useWindowState } from "@phreshos/react"
+import { usePresentationState, useWindowState } from "@phreshos/react"
 import { Button, Tabs, Window } from "@phreshos/react-ui"
 import { Globe, Plus, X } from "@phreshos/react-ui/icons"
 import { useEffect, useRef, useState } from "react"
@@ -51,6 +51,8 @@ export default function FlamboWindow({ window: me }: Readonly<{ window: string }
 
     const open = usePromise(async () => { setChosen((await createTab()).tab) })
     const window = useWindowState(context.window)
+    // Focused as the Desktop showing it decides; it may focus another Window than the System's front one.
+    const drawing = usePresentationState(context.presentation)
     const toggleMaximize = async () => context.window.maximize(!await context.window.maximized())
 
     // The window's initial state is its tabs and the first picture of the page; a problem reaching the
@@ -66,7 +68,7 @@ export default function FlamboWindow({ window: me }: Readonly<{ window: string }
 
     return <div className="flambo-window">
         <Window.Header
-            active={window?.front ?? true}
+            active={drawing?.focused ?? true}
             beginMoveGesture={context.presentation.beginMoveGesture}
             maximized={window?.maximized ?? false}
             onMaximize={() => void toggleMaximize()}
