@@ -194,7 +194,7 @@ export default function Screen({ tab, onDrawn }: Readonly<{ tab: string, onDrawn
         }
     }, [tab])
 
-    return <Surface ref={well} depth="recessed" material="extended" className="screen">
+    return <Surface ref={well} depth="recessed" className="screen">
         {/* A canvas starts at 300 by 150, and an opaque one starts black; this one has no size until the
             page's first picture gives it the picture's own. */}
         <canvas ref={canvas} className="screen-page" width={0} height={0} tabIndex={0} aria-label="Page" />

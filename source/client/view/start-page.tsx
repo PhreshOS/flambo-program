@@ -27,7 +27,7 @@ export default function StartPage({ tab, onDrawn }: Readonly<{ tab: string, onDr
     const settled = sites.solve !== undefined || sites.exception !== undefined
     useEffect(() => { if (settled) onDrawn?.() }, [settled])
 
-    return <Surface depth="recessed" material="extended" className="screen start-page">
+    return <Surface depth="recessed" className="screen start-page">
         <div className="start">
             <img className="start-mark" src={icon} alt="" />
             <Heading level={1} size="xlarge">{greeting()}</Heading>
