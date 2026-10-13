@@ -9,15 +9,21 @@ Every tab lives in one Server: the Process named `flambo`, Server only, whose
 Server holds the `flambo` Service. Flambo windows are Client-only Processes that
 reach it.
 
-Reach it with:
+Every request here is an Execute request: a JSON object the System understands
+as it is. Ask the Server with an `endpoint` `ask` request, the event's payload
+as its `input`:
 
-```sh
-phresh endpoint ask --program flambo --process flambo --endpoint server --event tabs.list --json
+```json
+{ "$domain": "endpoint", "$operation": "ask", "program": "flambo", "process": "flambo", "endpoint": "server", "event": "tabs.list" }
 ```
 
-When the Process is not running, find or create it with the Server enabled and
-the Client disabled. Never start another Server, and never give a window
-Process a Server.
+When the Process is not running, find or create it, Server only:
+
+```json
+{ "$domain": "process", "$operation": "findOrCreate", "program": "flambo", "launch": { "name": "flambo", "server": true, "client": false } }
+```
+
+Never start another Server, and never give a window Process a Server.
 
 ## Open a page
 
