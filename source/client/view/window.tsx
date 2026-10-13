@@ -2,8 +2,8 @@ import { createTab, followTabs, listTabs, tab as tabOf, type TabEntry } from "@c
 import usePromise from "@libs/react-promise"
 import { context } from "@phreshos/client"
 import { usePresentationState, useWindowState } from "@phreshos/react"
-import { Button, Tabs, Window } from "@phreshos/react-ui"
-import { Globe, Plus, X } from "@phreshos/react-ui/icons"
+import { Button, DocumentTabs, Window } from "@phreshos/react-ui"
+import { Globe } from "@phreshos/react-ui/icons"
 import { useEffect, useRef, useState } from "react"
 import icon from "@/icon.png"
 import { useFirstArrival } from "./readiness"
@@ -11,16 +11,14 @@ import Screen from "./screen/screen"
 import StartPage from "./start-page"
 import Toolbar from "./toolbar"
 
-/**
- * Every tab asks for this width, as in a browser, whatever its title. The tabs share the room in equal
- * columns, so when they do not all fit, each narrows to its column, evenly, rather than overlapping.
- */
-const tabWidth = { width: "12rem", maxWidth: "100%", justifyContent: "flex-start" }
+/** Where a window remembers the tab shown last, on whichever Desktop showed it. */
+const shownTab = "tab.shown"
 
 /**
  * Flambo as a window. Its tabs are its own pages: "+" opens one, closing a tab closes its page, and
  * closing the window closes them all. The Server opens a window's first tab; a page that opens another,
  * such as a link meant for a new tab, adds it here and shows it. Closing the last tab closes the window.
+ * Their order is the Server's, so every window and agent sees the order they are moved to.
  */
 export default function FlamboWindow({ window: me }: Readonly<{ window: string }>) {
     const initial = usePromise(() => listTabs(), [])
@@ -30,7 +28,15 @@ export default function FlamboWindow({ window: me }: Readonly<{ window: string }
 
     const mine = tabs?.filter(tab => tab.window === me) ?? []
     const [chosen, setChosen] = useState<string | null>(null)
-    const current = mine.find(tab => tab.tab === chosen) ?? mine.at(-1) ?? null
+    // Which tab is shown is each Desktop's own, and is not followed between them. The last one shown
+    // anywhere is remembered in this window's memory, so the window, loaded again, starts on it.
+    const [remembered, setRemembered] = useState<string | null | undefined>(undefined)
+    useEffect(() => { void context.memory.get<string>(shownTab).then(shown => setRemembered(shown ?? null), () => setRemembered(null)) }, [])
+    const current = mine.find(tab => tab.tab === (chosen ?? remembered)) ?? mine.at(-1) ?? null
+    // Written only once read, so a window loading does not overwrite what it is about to start from.
+    useEffect(() => {
+        if (current && remembered !== undefined) void context.memory.set(shownTab, current.tab).catch(() => undefined)
+    }, [current?.tab, remembered])
 
     // A tab that appears in this window, opened here or by a page, is shown at once.
     const known = useRef<ReadonlySet<string> | null>(null)
@@ -58,7 +64,7 @@ export default function FlamboWindow({ window: me }: Readonly<{ window: string }
     // The window's initial state is its tabs and the first picture of the page; a problem reaching the
     // Server is shown as it is. Pictures drawn later, for another tab, appear in place.
     const [drawn, setDrawn] = useState(false)
-    useFirstArrival(initial.exception !== undefined || (tabs !== null && drawn))
+    useFirstArrival(initial.exception !== undefined || (tabs !== null && remembered !== undefined && drawn))
 
     if (initial.exception) return <div className="problem">
         <p>Flambo could not reach its Server.</p>
@@ -75,20 +81,14 @@ export default function FlamboWindow({ window: me }: Readonly<{ window: string }
         >
             <Window.Header.Identity icon={icon} />
             {/* The center holds the controls only; the empty header around them still moves the window. */}
-            <Window.Header.Center style={{ flex: "0 1 auto", gap: "0.25rem", minWidth: 0 }}>
-                {mine.length > 0 && <Tabs value={current?.tab} onChange={setChosen} size="small" style={{ minWidth: 0 }}>
-                    <Tabs.List aria-label="Tabs">
-                        {mine.map(tab => <Tabs.Tab key={tab.tab} id={tab.tab} style={tabWidth}>
-                            <span className="tab">
-                                <Favicon tab={tab} />
-                                <span className="tab-title">{tab.title || "New tab"}</span>
-                                <span role="button" aria-label={`Close ${tab.title || "New tab"}`} title="Close this tab" className="tab-close"
-                                    onPointerDown={event => event.stopPropagation()} onClick={() => void tabOf(tab.tab).close().catch(() => undefined)}><X size={12} /></span>
-                            </span>
-                        </Tabs.Tab>)}
-                    </Tabs.List>
-                </Tabs>}
-                <Button iconOnly depth="none" size="small" aria-label="New tab" disabled={open.isPending} onPress={() => void open.safeExecute()}><Plus /></Button>
+            <Window.Header.Center style={{ flex: "0 1 auto", minWidth: 0 }}>
+                {/* The tabs are the Server's: closing and moving them asks it, and its new list redraws them. */}
+                <DocumentTabs aria-label="Tabs" size="small" value={current?.tab ?? null} onChange={setChosen}
+                    onClose={identity => void tabOf(identity).close().catch(() => undefined)}
+                    onMove={(identity, index) => void tabOf(identity).move(index).catch(() => undefined)}
+                    onAdd={() => { if (!open.isPending) void open.safeExecute() }}>
+                    {mine.map(tab => <DocumentTabs.Tab key={tab.tab} id={tab.tab} title={tab.title || "New tab"} icon={<Favicon tab={tab} />} />)}
+                </DocumentTabs>
             </Window.Header.Center>
             <Window.Header.Actions>
                 <Window.Header.Minimize preventFocusOnPress={false} onPress={() => void context.window.minimize()} />
@@ -96,9 +96,9 @@ export default function FlamboWindow({ window: me }: Readonly<{ window: string }
                 <Window.Header.Close preventFocusOnPress={false} onPress={() => void context.process().then(process => process.exit())} />
             </Window.Header.Actions>
         </Window.Header>
-        {current && <Toolbar tab={current} />}
+        {current && remembered !== undefined && <Toolbar tab={current} />}
         {/* A new tab, blank in Chromium, is drawn here; any other page arrives as its picture. */}
-        {!current ? <div />
+        {!current || remembered === undefined ? <div />
             : current.url === "" ? <StartPage key={current.tab} tab={current.tab} onDrawn={() => setDrawn(true)} />
                 : <Screen key={current.tab} tab={current.tab} onDrawn={() => setDrawn(true)} />}
     </div>

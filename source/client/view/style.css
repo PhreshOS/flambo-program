@@ -39,10 +39,6 @@ body {
 .start-welcome { max-width: 26rem; text-align: center; }
 .start-note { display: grid; justify-items: center; gap: 0.5rem; }
 
-.tab { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 0.4rem; flex: 1 1 auto; min-width: 0; }
-.tab-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: start; }
-.tab-close { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 4px; opacity: 0.45; cursor: pointer; }
-.tab-close:hover { opacity: 1; background: color-mix(in oklab, currentColor 12%, transparent); }
 .favicon { width: 14px; height: 14px; flex: none; }
 
 .problem { display: grid; place-content: center; justify-items: center; gap: 0.75rem; height: 100%; }
