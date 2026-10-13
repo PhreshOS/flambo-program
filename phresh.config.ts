@@ -12,12 +12,14 @@ export default defineConfig({
     website: "https://github.com/PhreshOS/flambo-program",
     agent: "agent.md",
     buildCommand: "vite-node scripts/build.ts",
-    // One Server holds the browser and every tab, in the Process named "flambo", which is the "flambo"
-    // Service. Windows are Clients that show their own tabs.
+    // Other Programs and agents reach the browser by its Service name.
+    permissions: { provideServices: ["flambo"] },
+    // One Server holds the browser and every tab, in the Process named "flambo"; that Server holds the
+    // "flambo" Service. Windows are Clients that show their own tabs.
     server: {
         location: "dist/server",
         start: false,
-        service: true,
+        service: "flambo",
         worker: "main.js",
         // Chromium comes with Flambo; on Linux its native libraries too, wherever they can be installed
         // without a password (see install-browser.mjs).

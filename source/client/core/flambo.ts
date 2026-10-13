@@ -4,7 +4,7 @@ import type { KeyInput, PointerInput, Viewport, VideoPiece } from "@server/core/
 import type { TabEntry } from "@server/core/tabs"
 import type { Site } from "@server/core/capture/capture"
 import { videoEvent } from "@shared/events"
-import { flamboService } from "@shared/service"
+import { flamboLaunch } from "@shared/launch"
 
 export type { KeyInput, PointerInput, Site, TabEntry, Viewport, VideoPiece }
 
@@ -14,11 +14,11 @@ let shared: Promise<Shared> | undefined
 
 const listFollowers = new Set<(tabs: readonly TabEntry[]) => void>()
 
-/** The one Server every window uses, the "flambo" Service; a window that finds it gone starts it again. */
+/** The one Server every window uses, in the Process named "flambo"; a window that finds it gone starts it again. */
 function server() {
     shared ??= (async () => {
         const program = await context.program()
-        const process = await program.findOrCreateProcess({ name: flamboService, server: true, client: false })
+        const process = await program.findOrCreateProcess(flamboLaunch)
         await process.server.waitReady()
         process.server.subscribe("tabs.changed", payload => { for (const follow of listFollowers) follow(payload as readonly TabEntry[]) })
         return { process, server: process.server }
@@ -71,6 +71,7 @@ export function tab(identity: string) {
     const payload = { tab: identity }
     return {
         close: () => ask<void>("tab.close", payload),
+        move: (index: number) => ask<void>("tab.move", { ...payload, index }),
         navigate: (address: string) => ask<void>("tab.navigate", { ...payload, address }),
         search: (text: string) => ask<void>("tab.search", { ...payload, text }),
         back: () => ask<void>("tab.back", payload),
