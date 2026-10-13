@@ -18,6 +18,7 @@ export const contract = {
     open: z.object({ address: z.string().max(8192).optional(), position: z.object({ x: value, y: value }).optional() }),
     create: z.object({ window: identity, address: z.string().max(8192).optional() }),
     tab: z.object(tab),
+    move: z.object({ ...tab, index: z.number().int().min(0).max(10_000) }),
     navigate: z.object({ ...tab, address: z.string().min(1).max(8192) }),
     search: z.object({ ...tab, text: z.string().min(1).max(8192) }),
     resize: z.object({ ...tab, width: z.number().int().min(1).max(8192), height: z.number().int().min(1).max(8192), scale: z.number().min(0.5).max(4) }),

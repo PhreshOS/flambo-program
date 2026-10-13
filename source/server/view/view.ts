@@ -2,7 +2,7 @@ import { context } from "@phreshos/server"
 import Browser from "@server/core/browser"
 import Tabs, { type Windows } from "@server/core/tabs"
 import { videoEvent } from "@shared/events"
-import { addressOption } from "@shared/service"
+import { addressOption } from "@shared/launch"
 import { contract } from "./contract"
 
 /** How many of the sites visited most a new tab offers. */
@@ -60,6 +60,11 @@ export default async function view() {
     })
 
     context.answer("tab.close", ({ payload }) => tabs.close(contract.tab.parse(payload).tab))
+
+    context.answer("tab.move", ({ payload }) => {
+        const { tab, index } = contract.move.parse(payload)
+        tabs.move(tab, index)
+    })
 
     context.answer("tab.navigate", async ({ payload }) => {
         const { tab, address } = contract.navigate.parse(payload)

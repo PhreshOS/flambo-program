@@ -63,6 +63,29 @@ export default class Tabs {
         await this.get(identity).close()
     }
 
+    /**
+     * Moves a tab to a place among its window's tabs, counted from 0; past the last, it goes last.
+     * Every window and agent then lists them in that order.
+     */
+    public move(identity: string, index: number) {
+        this.get(identity)
+        const window = this.windowOf.get(identity)!
+        const order = [...this.tabs.keys()]
+        const mine = order.filter(other => this.windowOf.get(other) === window)
+        // Only the order within its window counts: already at that place, nothing moves.
+        if (mine.indexOf(identity) === Math.min(index, mine.length - 1)) return
+        const others = order.filter(other => other !== identity)
+        const theirs = mine.filter(other => other !== identity)
+        // It goes before the one now at its new place, or after its window's last tab.
+        const before = theirs[index]
+        const at = before !== undefined ? others.indexOf(before) : others.indexOf(theirs.at(-1)!) + 1
+        const moved = [...others.slice(0, at), identity, ...others.slice(at)]
+        const tabs = new Map(moved.map(other => [other, this.tabs.get(other)!]))
+        this.tabs.clear()
+        for (const [key, tab] of tabs) this.tabs.set(key, tab)
+        this.emit({ type: "changed" })
+    }
+
     private async add(opened: OpenedPage, window: string) {
         const tab = new Tab(opened, this.browser.capture)
         this.tabs.set(tab.identity, tab)

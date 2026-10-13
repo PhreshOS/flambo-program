@@ -5,8 +5,8 @@ windows show its pages as live video and send input back. A tab belongs to the
 window that opened it, and closes when that window closes. A person and an
 agent working on the same tab see and change the same page.
 
-Every tab lives in one Server: the Process named `flambo`, Server only, which
-is also the `flambo` Service. Flambo windows are Client-only Processes that
+Every tab lives in one Server: the Process named `flambo`, Server only, whose
+Server holds the `flambo` Service. Flambo windows are Client-only Processes that
 reach it.
 
 Reach it with:
@@ -33,7 +33,8 @@ without its scheme, or words, which are searched for.
 
 1. `tabs.list` returns every tab: `{ tab, title, url, favicon, loading,
    canGoBack, canGoForward, window }`. `window` is the identity of the window
-   Process the tab belongs to. A new tab, still blank, has `url` `""`.
+   Process the tab belongs to, and each window's tabs come in the order its
+   tabs show. A new tab, still blank, has `url` `""`.
 2. Read the page with `tab.text` `{ tab }`: the page as a tree of what it offers
    people (headings, text, links, buttons, fields), in YAML.
 3. See it with `tab.picture` `{ tab }`: a JPEG of the page as it is.
@@ -49,6 +50,7 @@ without its scheme, or words, which are searched for.
 | `tab.press` | `{ tab, keys }` | Presses a key or a combination |
 | `tab.create` | `{ window, address? }` | Opens another tab in a window |
 | `tab.close` | `{ tab }` | Closes the tab |
+| `tab.move` | `{ tab, index }` | Moves the tab to a place among its window's tabs, from 0 |
 
 `input` for `tab.pointer` is one of `{ type: "move", x, y }`, `{ type: "down" |
 "up", x, y, button, clickCount }`, or `{ type: "wheel", x, y, deltaX, deltaY }`.
